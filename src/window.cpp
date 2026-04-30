@@ -28,7 +28,7 @@ void EmuWindow::run() {
 
 
     // text
-    sf::Font font("/Users/poxford3/Documents/coding/gbemu/assets/arial/ARIAL.TTF");
+    sf::Font font("/Users/poxford3/Documents/coding/cpp/gbemu/assets/arial/ARIAL.TTF");
     sf::Text text(font, "open file");
     text.setCharacterSize(24);
     text.setFillColor(sf::Color::Black);
