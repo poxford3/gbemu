@@ -1,5 +1,5 @@
 #include <iostream>
-// #include <nfd.h>
+#include <nfd.h>
 #include "window.hpp"
 
 EmuWindow::EmuWindow() {
@@ -47,6 +47,9 @@ void EmuWindow::run() {
                 // Check if the mouse click is within the button's bounds
                 if (button.getGlobalBounds().contains({(float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y})) {
                     std::cout << "Button clicked!" << std::endl;
+                    FileHandler test = getFileFromUser();
+                    std::vector<unsigned char> buffer = test.readFile();
+                    test.readRandomValues(buffer, 0, 32);
                 }
             }
         }
@@ -58,6 +61,23 @@ void EmuWindow::run() {
     }
 }   
 
-FileHandler EmuWindow::getFileFromUser(std::string filePath) {
-    return FileHandler(filePath);
+FileHandler EmuWindow::getFileFromUser() {
+    nfdchar_t* outPath = nullptr;
+    nfdresult_t result = NFD_OpenDialog(&outPath, NULL, NULL, NULL);
+
+    if (result == NFD_OKAY) {
+        // std::string filePath(outPath);
+        std::cout << "successfully got file path: " << outPath << std::endl;
+        puts(outPath);
+        std::string str_filePath(outPath);
+        free(outPath);
+        return FileHandler(str_filePath);
+
+    } else if (result == NFD_CANCEL) {
+        std::cout << "User canceled the dialog." << std::endl;
+    } else {
+        std::cerr << "Error: " << NFD_GetError() << std::endl;
+    }
+    // return FileHandler(filePath);
+    return FileHandler("");
 }

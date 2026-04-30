@@ -10,7 +10,7 @@ class EmuWindow {
     public:
         EmuWindow();
         void run();
-        FileHandler getFileFromUser(std::string filePath);
+        FileHandler getFileFromUser();
     private:
         sf::Window window;
 };
