@@ -2,9 +2,7 @@
 #include <nfd.h>
 #include "window.hpp"
 
-EmuWindow::EmuWindow() {
-    
-}
+EmuWindow::EmuWindow() {}
 
 void EmuWindow::run() {
     int gbHeight = 160;
@@ -50,6 +48,7 @@ void EmuWindow::run() {
                     FileHandler test = getFileFromUser();
                     std::vector<unsigned char> buffer = test.readFile();
                     test.readRandomValues(buffer, 0, 32);
+                    text.setString("file loaded!");
                 }
             }
         }
@@ -59,7 +58,8 @@ void EmuWindow::run() {
         window.draw(text);
         window.display();
     }
-}   
+}
+
 
 FileHandler EmuWindow::getFileFromUser() {
     nfdchar_t* outPath = nullptr;
