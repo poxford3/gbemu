@@ -13,7 +13,7 @@ int main() {
     std::vector<unsigned char> buffer = fileHandler.readFile();
     
     std::cout << "File size: " << buffer.size() << " bytes" << std::endl;
-    fileHandler.readRandomValues(buffer, 0, 32); // Read first 32 bytes
+    fileHandler.readRandomValues(buffer, 256, 32); // Read first 32 bytes starting at $0100
     fileHandler.readNthByte(buffer, 0x0100); // Read byte at index $0100
     
     EmuWindow emuWindow;
