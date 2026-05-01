@@ -68,16 +68,29 @@ struct Cpu {
     void executeInstruction(uint cycles, Mem &memory);
 
     // Opcodes
+    
+    // x0 opcodes
     static constexpr Byte NOP = 0x00; // No operation
+    static constexpr Byte STOP = 0x01; // stops clock and oscillator
+    static constexpr Byte JP_NZ_s8 = 0x20; // Jump to relative address if Z flag is not set
+
+    // x1 opcodes
     static constexpr Byte LD_BC_d16 = 0x01; // Load 16-bit immediate into BC
     static constexpr Byte LD_DE_d16 = 0x11; // Load 16-bit immediate into DE
     static constexpr Byte LD_HL_d16 = 0x21; // Load 16-bit immediate into HL
     static constexpr Byte LD_SP_d16 = 0x31; // Load 16-bit immediate into SP
-
-    // for test
-    static constexpr Byte LD_D_B = 0x50; // Load B into D
-    static constexpr Byte JP_NZ_a16 = 0xC3; // Jump to 16-bit address if zero flag is not set
-
+    static constexpr Byte LD_B_C = 0x41; // Load C into B
+    static constexpr Byte LD_D_C = 0x51; // Load C into D
+    static constexpr Byte LD_H_C = 0x61; // Load C into H
+    static constexpr Byte LD_HLmem_C = 0x71; // Load C into (HL) memory
+    static constexpr Byte ADD_A_C = 0x81; // Add C to A
+    static constexpr Byte SUB_C = 0x91; // Subtract C from A
+    static constexpr Byte AND_C = 0xA1; // Logical AND C with A
+    static constexpr Byte OR_C = 0xB1; // Logical OR C with A
+    static constexpr Byte POP_BC = 0xC1; // Pop 16-bit value from stack into BC
+    static constexpr Byte POP_DE = 0xD1; // Pop 16-bit value from stack into DE
+    static constexpr Byte POP_HL = 0xE1; // Pop 16-bit value from stack into HL
+    static constexpr Byte POP_AF = 0xF1; // Pop 16-bit value
 
 
 };
