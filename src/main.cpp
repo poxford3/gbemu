@@ -46,8 +46,6 @@ int main() {
     cpu.executeInstruction(2, memory);
     std::cout << "Value at memory address 0x0013 after LD A,(BC): 0x" << std::hex << static_cast<int>(memory[0x0013]) << std::dec << std::endl;
     cpu.showAllRegisterValues();
-    uint test = cpu.opcycles[Cpu::LD_A_DEmem];
-    std::cout << "Cycles for LD A,(DE): " << test << std::dec << std::endl;
     // end test
 
 
