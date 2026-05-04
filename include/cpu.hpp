@@ -2,18 +2,13 @@
 #include <cassert>
 #include <stdint.h>
 #include <ctype.h>
-#include "opcodes.hpp"
-#include "opcycles.hpp"
+#include "types.hpp"
 
 
 #ifndef CPU_HPP
 #define CPU_HPP
 
-// 8 bits
-using Byte = uint8_t;
-// 16 bits
-using Word = uint16_t;
-using uint = uint32_t;
+
 
 struct Mem
 {
@@ -90,6 +85,7 @@ struct Cpu {
     Word incWord(Word value); // increment a 16-bit word, wrapping around at 0xFFFF
     Word decWord(Word value); // decrement a 16-bit word, wrapping around at 0x0000
 
+    // load operations
     Word loadWord(Mem &memory);
     Byte loadByte(Mem &memory);
     void loadRegToReg(Byte &dest, Byte &src);

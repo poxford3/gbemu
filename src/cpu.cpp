@@ -1,5 +1,7 @@
 #include <iostream>
 #include "cpu.hpp"
+#include "opcodes.hpp"
+#include "opcycles.hpp"
 
 
 void Cpu::reset(Mem &memory) {
@@ -144,13 +146,13 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             // x0 opcodes
             case NOP: {
                 std::cout << "Executed NOP" << std::endl;
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case STOP: {
                 // TODO
                 std::cout << "Executed STOP" << std::endl;
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case JR_NZ_s8: {
@@ -162,42 +164,42 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
                 break;
             }
             case LD_B_B: {
-                cycles -= Cpu::opcycles[opcode] - 1; // effectively NOP
+                cycles -= opcycles[opcode] - 1; // effectively NOP
                 break;
             }
             case LD_D_B: {
                 loadRegToReg(D, B);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_H_B: {
                 loadRegToReg(H, B);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_HLmem_B: {
                 loadRegToMemory(memory, HL, B);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case ADD_A_B: {
                 addRegToReg(A, B);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case SUB_B: {
                 subRegToReg(A, B);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case AND_B: {
                 andRegToA(B);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case OR_B: {
                 orRegToA(B);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case RET_NZ: {
@@ -211,158 +213,158 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             case LD_a8mem_A: {
                 Byte a8 = loadByte(memory);
                 loadRegToMemory(memory, a8, A);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_A_a8mem: {
                 Byte a8 = loadByte(memory);
                 loadRegFromMemory(memory, a8, A);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
 
             // x1 opcodes
             case LD_BC_d16: {
                 BC = loadWord(memory);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_DE_d16: {
                 DE = loadWord(memory);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_HL_d16: {
                 HL = loadWord(memory);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_SP_d16: {
                 SP = loadWord(memory);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_B_C: {
                 loadRegToReg(B, C);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_D_C: {
                 loadRegToReg(D, C);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_H_C: {
                 loadRegToReg(H, C);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_HLmem_C: {
                 loadRegToMemory(memory, HL, C);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case ADD_A_C: {
                 addRegToReg(A, C);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case SUB_C: {
                 subRegToReg(A, C);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case AND_C: {
                 andRegToA(C);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case OR_C: {    
                 orRegToA(C);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case POP_BC: {
                 PopStackToReg(BC, memory);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case POP_DE: {
                 PopStackToReg(DE, memory);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case POP_HL: {
                 PopStackToReg(HL, memory);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case POP_AF: {
                 PopStackToReg(AF, memory);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
 
             // x2 opcodes
             case LD_BCmem_A: {
                 loadRegToMemory(memory, BC, A);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_DEmem_A: {
                 loadRegToMemory(memory, DE, A);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_HLi_A: {
                 loadRegToMemory(memory, HL, A);
                 HL = incWord(HL);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_HLd_A: {
                 loadRegToMemory(memory, HL, A);
                 HL = decWord(HL);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_B_D: {
                 loadRegToReg(B, D);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_D_D: {
-                cycles -= Cpu::opcycles[opcode] - 1; // effectively NOP
+                cycles -= opcycles[opcode] - 1; // effectively NOP
                 break;
             }
             case LD_H_D: {
                 loadRegToReg(H, D);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_HLmem_D: {
                 loadRegToMemory(memory, HL, D);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case ADD_A_D: {
                 addRegToReg(A, D);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case SUB_D: {
                 subRegToReg(A, D);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case AND_D: {
                 andRegToA(D);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case OR_D: {
                 orRegToA(D);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case JP_NZ_a16: {
@@ -375,19 +377,19 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             }
             case LD_Cmem_A: {
                 loadRegToMemory(memory, C, A);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_A_Cmem: {
                 loadRegFromMemory(memory, C, A);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
 
 
             case LD_A_BCmem: {
                 loadRegToMemory(memory, BC, A);
-                cycles -= Cpu::opcycles[opcode] - 1;
+                cycles -= opcycles[opcode] - 1;
                 break;
             }
             default:

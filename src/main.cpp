@@ -4,6 +4,8 @@
 #include "window.hpp"
 #include "file.hpp"
 #include "cpu.hpp"
+#include "opcodes.hpp"
+#include "opcycles.hpp"
 
 
 int main() {
@@ -11,10 +13,6 @@ int main() {
     Mem memory;
     Cpu cpu;
     cpu.reset(memory);
-
-
-    opcodes opcodes; // test
-    std::cout << "NOP_test value from opcodes struct: " << opcodes.NOP_test << std::endl;
 
     // test
     // memory[0x0100] = Cpu::NOP; // NOP
@@ -48,16 +46,16 @@ int main() {
     // std::cout << "Value at memory address 0x0013 after LD A,(BC): 0x" << std::hex << static_cast<int>(memory[0x0013]) << std::dec << std::endl;
     // cpu.showAllRegisterValues();
 
-    memory[0x0100] = Cpu::AND_B; // AND B with A
+    memory[0x0100] = AND_B; // AND B with A
     cpu.B = 0xB1;
     cpu.A = 0xB4;
-    cpu.executeInstruction(Cpu::opcycles[Cpu::AND_B], memory);
+    cpu.executeInstruction(opcycles[AND_B], memory);
     cpu.showAllRegisterValues();
     printf("\n\n");
     cpu.A = 0x90;
     cpu.B = 0x80;
-    memory[0x0101] = Cpu::ADD_A_B;
-    cpu.executeInstruction(Cpu::opcycles[Cpu::ADD_A_B], memory);
+    memory[0x0101] = ADD_A_B;
+    cpu.executeInstruction(opcycles[ADD_A_B], memory);
     cpu.showAllRegisterValues();
     // end test
 
