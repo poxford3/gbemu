@@ -289,13 +289,8 @@ enum Opcodes : Byte {
 
 enum OpcodeExtended : Byte {
     // Extended opcodes (prefixed with 0xCB)
+
+    // x0 extended opcodes
     RLC_B = 0x00, // Rotate B left. Old bit 7 to Carry flag
-    RLC_C = 0x01, // Rotate C left. Old bit 7 to Carry flag
-    RLC_D = 0x02, // Rotate D left. Old bit 7 to Carry flag
-    RLC_E = 0x03, // Rotate E left. Old bit 7 to Carry flag
-    RLC_H = 0x04, // Rotate H left. Old bit 7 to Carry flag
-    RLC_L = 0x05, // Rotate L left. Old bit 7 to Carry flag
-    RLC_HLmem = 0x06, // Rotate (HL) memory left. Old bit 7 to Carry flag
-    RLC_A = 0x07, // Rotate A left. Old bit 7 to Carry flag
-    // ... (other extended opcodes would go here)
+    RL_B = 0x10, // Rotate B left through Carry flag
 };
