@@ -87,6 +87,7 @@ struct Cpu {
     void jp(Word address);
     void jr(int8_t offset);
     void call(Word address, Mem &memory);
+    void RET(Mem &memory);
 
     // load operations
     Word loadWord(Mem &memory);

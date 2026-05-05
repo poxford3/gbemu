@@ -1388,6 +1388,252 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
                 }
             }
 
+            // xD opcodes
+            case DEC_C: {
+                C = decWord(C);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case DEC_E: {
+                E = decWord(E);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case DEC_L: {
+                L = decWord(L);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case DEC_A: {
+                A = decWord(A);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_C_L: {
+                loadRegToReg(C, L);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_E_L: {
+                loadRegToReg(E, L);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_L_L: {
+                cycles -= opcycles[opcode] - 1; // effectively NOP
+                break;
+            }
+            case LD_A_L: {
+                loadRegToReg(A, L);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case ADC_A_L: {
+                ADC(L);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case SBC_A_L: {
+                SBC(L);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case XOR_L: {
+                xorRegToA(L);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case CP_L: {
+                CP(L);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case CALL_a16: {
+                Word a16 = loadWord(memory);
+                call(a16, memory);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+
+            // xE opcodes
+            case LD_C_d8: {
+                Byte d8 = loadByte(memory);
+                loadRegToReg(C, d8);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_E_d8: {
+                Byte d8 = loadByte(memory);
+                loadRegToReg(E, d8);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_L_d8: {
+                Byte d8 = loadByte(memory);
+                loadRegToReg(L, d8);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_A_d8: {
+                Byte d8 = loadByte(memory);
+                loadRegToReg(A, d8);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_C_HLmem: {
+                loadRegFromMemory(memory, HL, C);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_E_HLmem: {
+                loadRegFromMemory(memory, HL, E);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_L_HLmem: {
+                loadRegFromMemory(memory, HL, L);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_A_HLmem: {
+                loadRegFromMemory(memory, HL, A);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case ADC_A_HLmem: {
+                Byte value = readByte(memory, HL);
+                ADC(value);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case SBC_A_HLmem: {
+                Byte value = readByte(memory, HL);
+                SBC(value);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case XOR_HLmem: {
+                Byte value = readByte(memory, HL);
+                xorRegToA(value);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case CP_HLmem: {
+                Byte value = readByte(memory, HL);
+                CP(value);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case ADC_A_d8: {
+                Byte d8 = loadByte(memory);
+                ADC(d8);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case SBC_A_d8: {
+                Byte d8 = loadByte(memory);
+                SBC(d8);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case XOR_d8: {
+                Byte d8 = loadByte(memory);
+                xorRegToA(d8);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case CP_d8: {
+                Byte d8 = loadByte(memory);
+                CP(d8);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            
+            // xF opcodes
+            case RRCA: {
+                rotateRight(A, false);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case RRA: {
+                rotateRight(A, true);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case CPL: {
+                A = ~A;
+                Byte currentZFlag = (F >> 7) & 1; // Store current Z flag value
+                updateFlags(currentZFlag, true, true, false); // Set N and H flags, reset C flag, Z flag is unaffected
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case CCF: {
+                Byte currentZFlag = (F >> 7) & 1; // Store current Z flag value
+                bool currentCFlag = (F >> 4) & 1; // Store current C flag value
+                updateFlags(currentZFlag, false, false, !currentCFlag); // Toggle C flag, reset N and H flags, Z flag is unaffected
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_C_A: {
+                loadRegToReg(C, A);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_E_A: {
+                loadRegToReg(E, A);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_L_A: {
+                loadRegToReg(L, A);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_A_A: {
+                cycles -= opcycles[opcode] - 1; // effectively NOP
+                break;
+            }
+            case ADC_A_A: {
+                ADC(A);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case SBC_A_A: {
+                SBC(A);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case XOR_A: {
+                xorRegToA(A);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case CP_A: {
+                CP(A);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case RST_1: {
+                RST(0x08, memory);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case RST_3: {
+                RST(0x18, memory);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case RST_5: {
+                RST(0x28, memory);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case RST_7: {
+                RST(0x38, memory);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+
             // nested cases for unimplemented opcodes
             case 0xD3:
             case 0xDB:
