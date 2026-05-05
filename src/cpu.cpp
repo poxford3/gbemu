@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdint>
 #include "cpu.hpp"
 #include "opcodes.hpp"
 #include "opcycles.hpp"
@@ -90,20 +91,21 @@ void Cpu::rotateRight(Byte &value, std::optional<bool> throughCarry) {
     F = (F & 0xEF) | (oldBit0 ? 0x10 : 0); // Update carry flag based on old bit 0
 }
 
-void Cpu::jp(Word address, std::optional<bool> condition) {
-    if (!condition.has_value() || condition.value()) { // checks if condition is not provided (always jump) or if condition is true
-        PC = address;
-    } else {
-        PC++;
-    }
+void Cpu::jp(Word address) {
+    // jump to address
+    PC = address;
 }
 
-void Cpu::jr(Byte offset, std::optional<bool> condition) {
-    if (!condition.has_value() || condition.value()) { // checks if condition is not provided (always jump) or if condition is true
-        PC += static_cast<Byte>(offset); // offset is signed, so we cast it to Byte to get the correct behavior for negative offsets
-    } else {
-        PC++;
-    }
+void Cpu::jr(int_8t offset) {
+    // jump to PC + offset (offset is signed)
+    PC += static_cast<int_8t>(offset);
+}
+
+void Cpu::call(Word address, Mem &memory) {
+    // Push current PC onto stack
+    pushRegToStack(PC, memory);
+    // Jump to the specified address
+    PC = address;
 }
 
 
@@ -278,15 +280,25 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             case JR_NZ_s8: {
                 bool z_flag = (F >> 7) & 1;
                 Byte a8 = loadByte(memory);
-                jr(a8, z_flag == 0);
-                cycles -= opcycles[opcode] - 1;
+                if (z_flag == 0) {
+                    jr(a8);
+                    cycles -= opcycles[opcode] - 1;
+                } else {
+                    // if condition not met, number of cycles required goes to 3
+                    cycles -= 2 - 1;
+                }
                 break;
             }
             case JR_NC_s8: {
                 bool c_flag = (F >> 4) & 1;
                 Byte a8 = loadByte(memory);
-                jr(a8, c_flag == 0);
-                cycles -= opcycles[opcode] - 1;
+                if (c_flag == 0) {
+                    jr(a8);
+                    cycles -= opcycles[opcode] - 1;
+                } else {
+                    // if condition not met, number of cycles required goes to 3
+                    cycles -= 2 - 1;
+                }
                 break;
             }
             case LD_B_B: {
@@ -496,15 +508,22 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             case JP_NZ_a16: {
                 bool z_flag = (F >> 7) & 1;
                 Word a16 = loadWord(memory);
-                jp(a16, z_flag == 0);
-                cycles -= opcycles[opcode] - 1;
+                if (z_flag == 0) {
+                    jp(a16);
+                } else {
+                    // cycles go from 6 to 3 if condition not met, because we still need to read the a16 operand but we don't jump
+                    cycles -= 3 - 1;
+                }
                 break;
             }
             case JP_NC_a16: {
                 bool c_flag = (F >> 4) & 1;
                 Word a16 = loadWord(memory);
-                jp(a16, c_flag == 0);
-                cycles -= opcycles[opcode] - 1;
+                if (c_flag == 0) {
+                    jp(a16);
+                } else {
+                    cycles -= 3 - 1;
+                }
                 break;
             }
             case LD_Cmem_A: {
@@ -654,11 +673,26 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
                 break;
             }
             case CALL_NZ_a16: {
-                // TODO
-                break;
+                bool z_flag = (F >> 7) & 1;
+                Word a16 = loadWord(memory);
+                if (z_flag == 0) {
+                    call(a16, memory);
+                    cycles -= opcycles[opcode] - 1;
+                } else {
+                    // if condition not met, number of cycles required goes to 3
+                    cycles -= 3 - 1;
+                }
             }
             case CALL_NC_a16: {
-                // TODO
+                bool c_flag = (F >> 4) & 1;
+                Word a16 = loadWord(memory);
+                if (c_flag == 0) {
+                    call(a16, memory);
+                    cycles -= opcycles[opcode] - 1;
+                } else {
+                    // if condition not met, number of cycles required goes to 3
+                    cycles -= 3 - 1;
+                }
                 break;
             }
 
@@ -943,15 +977,25 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             case JR_Z_s8: {
                 bool z_flag = (F >> 7) & 1;
                 Byte a8 = loadByte(memory);
-                jr(a8, z_flag == 1);
-                cycles -= opcycles[opcode] - 1;
+                if (z_flag == 1) {
+                    jr(a8);
+                    cycles -= opcycles[opcode] - 1;
+                } else {
+                    // if condition not met, number of cycles required goes to 3
+                    cycles -= 2 - 1;
+                }
                 break;
             }
             case JR_C_s8: {
                 bool c_flag = (F >> 4) & 1;
                 Byte a8 = loadByte(memory);
-                jr(a8, c_flag == 1);
-                cycles -= opcycles[opcode] - 1;
+                if (c_flag == 1) {
+                    jr(a8);
+                    cycles -= opcycles[opcode] - 1;
+                } else {
+                    // if condition not met, number of cycles required goes to 3
+                    cycles -= 2 - 1;
+                }
                 break;
             }
             case LD_C_B: {
@@ -1163,16 +1207,185 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             case JP_Z_a16: {
                 bool z_flag = (F >> 7) & 1;
                 Word a16 = loadWord(memory);
-                jp(a16, z_flag == 1);
-                cycles -= opcycles[opcode] - 1;
+                if (z_flag == 1) {
+                    jp(a16);
+                } else {
+                    // cycles go from 6 to 3 if condition not met, because we still need to read the a16 operand but we don't jump
+                    cycles -= 3 - 1;
+                }
                 break;
             }
             case JP_C_a16: {
                 bool c_flag = (F >> 4) & 1;
                 Word a16 = loadWord(memory);
-                jp(a16, c_flag == 1);
+                if (c_flag == 1) {
+                    jp(a16);
+                } else {
+                    // cycles go from 6 to 3 if condition not met, because we still need to read the a16 operand but we don't jump
+                    cycles -= 3 - 1;
+                }
+                break;
+            }
+            case LD_a16mem_A: {
+                Word a16 = loadWord(memory);
+                loadRegToMemory(memory, a16, A);
                 cycles -= opcycles[opcode] - 1;
                 break;
+            }
+            case LD_A_a16mem: {
+                Word a16 = loadWord(memory);
+                loadRegFromMemory(memory, a16, A);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+
+            // xB opcodes
+            case DEC_BC: {
+                BC = decWord(BC);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case DEC_DE: {
+                DE = decWord(DE);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case DEC_HL: {
+                HL = decWord(HL);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case DEC_SP: {
+                SP = decWord(SP);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_C_E: {
+                loadRegToReg(C, E);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_E_E: {
+                cycles -= opcycles[opcode] - 1; // effectively NOP
+                break;
+            }
+            case LD_L_E: {
+                loadRegToReg(L, E);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_A_E: {
+                loadRegToReg(A, E);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case ADC_A_E: {
+                ADC(E);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case SBC_A_E: {
+                SBC(E);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case XOR_E: {
+                xorRegToA(E);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case CP_E: {
+                CP(E);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case EI: {
+                // TODO
+                break;
+            }
+
+            // xC opcodes
+            case INC_C: {
+                C = incWord(C);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case INC_E: {
+                E = incWord(E);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case INC_L: {
+                L = incWord(L);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case INC_A: {
+                A = incWord(A);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_C_H: {
+                loadRegToReg(C, H);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_E_H: {
+                loadRegToReg(E, H);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_L_H: {
+                loadRegToReg(L, H);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case LD_A_H: {
+                loadRegToReg(A, H);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case ADC_A_H: {
+                ADC(H);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case SBC_A_H: {
+                SBC(H);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case XOR_H: {
+                xorRegToA(H);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case CP_H: {
+                CP(H);
+                cycles -= opcycles[opcode] - 1;
+                break;
+            }
+            case CALL_Z_a16: {
+                bool z_flag = (F >> 7) & 1;
+                Word a16 = loadWord(memory);
+                if (z_flag == 1) {
+                    call(a16, memory);
+                    cycles -= opcycles[opcode] - 1;
+                } else {
+                    // if condition not met, number of cycles required goes to 3
+                    cycles -= 3 - 1;
+                }
+            }
+            case CALL_C_a16: {
+                bool c_flag = (F >> 4) & 1;
+                Word a16 = loadWord(memory);
+                if (c_flag == 1) {
+                    call(a16, memory);
+                    cycles -= opcycles[opcode] - 1;
+                } else {
+                    // if condition not met, number of cycles required goes to 3
+                    cycles -= 3 - 1;
+                }
             }
 
             // nested cases for unimplemented opcodes

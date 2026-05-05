@@ -9,7 +9,6 @@
 #define CPU_HPP
 
 
-
 struct Mem
 {
     // https://gbdev.io/pandocs/Memory_Map.html
@@ -84,8 +83,9 @@ struct Cpu {
     Word decWord(Word value); // decrement a 16-bit word, wrapping around at 0x0000
     void rotateLeft(Byte &value, std::optional<bool> throughCarry = std::nullopt);
     void rotateRight(Byte &value, std::optional<bool> throughCarry = std::nullopt);
-    void jp(Word address, std::optional<bool> condition = std::nullopt); // if condition is not provided, always jump. If condition is provided, jump if condition is true
-    void jr(Byte offset, std::optional<bool> condition = std::nullopt); // if condition is not provided, always jump. If condition is provided, jump if condition is true
+    void jp(Word address);
+    void jr(int_8t offset);
+    void call(Word address, Mem &memory);
 
     // load operations
     Word loadWord(Mem &memory);
