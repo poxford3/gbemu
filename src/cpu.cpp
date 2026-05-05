@@ -96,9 +96,9 @@ void Cpu::jp(Word address) {
     PC = address;
 }
 
-void Cpu::jr(int_8t offset) {
+void Cpu::jr(int8_t offset) {
     // jump to PC + offset (offset is signed)
-    PC += static_cast<int_8t>(offset);
+    PC += offset;
 }
 
 void Cpu::call(Word address, Mem &memory) {

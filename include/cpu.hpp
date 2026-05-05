@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <stdint.h>
+#include <cstdint>
 #include <ctype.h>
 #include "types.hpp"
 
@@ -84,7 +85,7 @@ struct Cpu {
     void rotateLeft(Byte &value, std::optional<bool> throughCarry = std::nullopt);
     void rotateRight(Byte &value, std::optional<bool> throughCarry = std::nullopt);
     void jp(Word address);
-    void jr(int_8t offset);
+    void jr(int8_t offset);
     void call(Word address, Mem &memory);
 
     // load operations
