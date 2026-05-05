@@ -7,7 +7,7 @@ EmuWindow::EmuWindow() {}
 void EmuWindow::run() {
     int gbHeight = 160;
     int gbWidth = 144;
-    int scale = 4;
+    int scale = 2;
     unsigned windowWidth = gbWidth * scale;
     unsigned windowHeight = gbHeight * scale;
     sf::RenderWindow window(

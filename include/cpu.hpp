@@ -27,14 +27,12 @@ struct Mem
     // read 1 byte
     Byte operator[](uint address) const {
         assert (address < size);
-        // Add bounds checking if necessary
         return Data[address];
     }
 
     // write 1 byte
     Byte& operator[](uint address) {
         assert (address < size);
-        // Add bounds checking if necessary
         return Data[address];
     }
 };
@@ -84,13 +82,19 @@ struct Cpu {
     Byte readByte(Mem &memory, Word address);
     Word incWord(Word value); // increment a 16-bit word, wrapping around at 0xFFFF
     Word decWord(Word value); // decrement a 16-bit word, wrapping around at 0x0000
+    void rotateLeft(Byte &value, std::optional<bool> throughCarry = std::nullopt);
+    void rotateRight(Byte &value, std::optional<bool> throughCarry = std::nullopt);
+    void jp(Word address, std::optional<bool> condition = std::nullopt); // if condition is not provided, always jump. If condition is provided, jump if condition is true
+    void jr(Byte offset, std::optional<bool> condition = std::nullopt); // if condition is not provided, always jump. If condition is provided, jump if condition is true
 
     // load operations
     Word loadWord(Mem &memory);
     Byte loadByte(Mem &memory);
     void loadRegToReg(Byte &dest, Byte &src);
+    void loadRegToReg(Word &dest, Word &src);
     void loadRegToMemory(Mem &memory, Word address, Byte &reg);
     void loadRegFromMemory(Mem &memory, Word address, Byte &reg);
+    void RST(Word address, Mem &memory);
 
     // logical operations
     void andRegToA(Byte &src);
@@ -99,10 +103,16 @@ struct Cpu {
 
     // math operations
     void addRegToReg(Byte &dest, Byte &src);
+    void addRegToReg(Word &dest, Word &src);
+    Word addByteToWord(Word &dest, Byte src);
     void subRegToReg(Byte &dest, Byte &src);
+    void ADC(Byte src);
+    void SBC(Byte src);
+    void CP(Byte src); // essentially A - src, but only affects flags, does not store result
+    void _DAA(); // Decimal Adjust Accumulator
 
-    void PopStackToReg(Word &reg, Mem &memory);
-    void PushRegToStack(Word reg, Mem &memory);
+    void popStackToReg(Word &reg, Mem &memory);
+    void pushRegToStack(Word reg, Mem &memory);
 
     Byte fetchInstruction(uint &cycles, Mem &memory);
     void executeInstruction(uint cycles, Mem &memory);

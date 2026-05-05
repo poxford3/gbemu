@@ -60,8 +60,8 @@ int main() {
     // end test
 
 
-    // EmuWindow emuWindow;
-    // emuWindow.run();
+    EmuWindow emuWindow;
+    emuWindow.run();
 
 
     return 0;
