@@ -122,7 +122,7 @@ struct Cpu {
 
     Byte fetchInstruction(uint &cycles, Mem &memory);
     void executeInstruction(uint cycles, Mem &memory);
-    void executeExtendedOpcode(Byte opcode, Mem &memory);
+    void executeExtendedOpcode(uint &cycles, Mem &memory);
     void showAllRegisterValues();
 
 };

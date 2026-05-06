@@ -922,7 +922,8 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             }
             case SCF: {
                 Byte currentZFlag = (F >> 7) & 1; // Store current Z flag value
-                updateFlags(currentZFlag, false, false, true); // Set C flag, reset N and H flags, Z flag is unaffected
+                Byte resultZ = currentZFlag ? 0x00: 0x01; // if current zflag is 1, resultZ zero to set it to one
+                updateFlags(resultZ, false, false, true); // Set C flag, reset N and H flags, Z flag is unaffected
                 cycles -= opcycles[opcode] - 1;
                 break;
             }
@@ -1173,23 +1174,23 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
 
             // xA opcodes
             case LD_A_BCmem: {
-                loadRegToMemory(memory, BC, A);
+                loadRegFromMemory(memory, BC, A);
                 cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_A_DEmem: {
-                loadRegToMemory(memory, DE, A);
+                loadRegFromMemory(memory, DE, A);
                 cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_A_HLi: {
-                loadRegToMemory(memory, HL, A);
+                loadRegFromMemory(memory, HL, A);
                 HL = incWord(HL);
                 cycles -= opcycles[opcode] - 1;
                 break;
             }
             case LD_A_HLd: {
-                loadRegToMemory(memory, HL, A);
+                loadRegFromMemory(memory, HL, A);
                 HL = decWord(HL);
                 cycles -= opcycles[opcode] - 1;
                 break;
@@ -1598,14 +1599,16 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             case CPL: {
                 A = ~A;
                 Byte currentZFlag = (F >> 7) & 1; // Store current Z flag value
-                updateFlags(currentZFlag, true, true, false); // Set N and H flags, reset C flag, Z flag is unaffected
+                Byte resultZ = currentZFlag ? 0x00: 0x01;
+                updateFlags(resultZ, true, true, false); // Set N and H flags, reset C flag, Z flag is unaffected
                 cycles -= opcycles[opcode] - 1;
                 break;
             }
             case CCF: {
                 Byte currentZFlag = (F >> 7) & 1; // Store current Z flag value
                 bool currentCFlag = (F >> 4) & 1; // Store current C flag value
-                updateFlags(currentZFlag, false, false, !currentCFlag); // Toggle C flag, reset N and H flags, Z flag is unaffected
+                Byte resultZ = currentZFlag ? 0x00: 0x01;
+                updateFlags(resultZ, false, false, !currentCFlag); // Toggle C flag, reset N and H flags, Z flag is unaffected
                 cycles -= opcycles[opcode] - 1;
                 break;
             }
@@ -1690,16 +1693,21 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
         }
     }
 };
-void Cpu::executeExtendedOpcode(Byte opcode, Mem &memory) {
-    switch (opcode) {
-        // case RLC_B: {
-        //     rotateLeft(B, false);
-        //     cycles -= opcycles[opcode] - 1;
-        //     break;
+
+void Cpu::executeExtendedOpcode(uint &cycles, Mem &memory) {
+    while (cycles > 0) {
+        Byte opcode = loadByte(memory);
+
+        // switch (opcode) {
+        //     // case RLC_B: {
+        //     //     rotateLeft(B, false);
+        //     //     cycles -= opcycles[opcode] - 1;
+        //     //     break;
+        //     // }
+        //     // TODO
+        //     default:
+        //         std::cout << "Unknown extended opcode: 0xCB 0x" << std::hex << static_cast<int>(opcode) << std::dec << std::endl;
+        //         break;
         // }
-        // TODO
-        default:
-            std::cout << "Unknown extended opcode: 0xCB 0x" << std::hex << static_cast<int>(opcode) << std::dec << std::endl;
-            break;
     }
 };
