@@ -52,7 +52,6 @@ Byte Cpu::readByte(Mem &memory, Word address) {
 }
 
 Word Cpu::incWord(Word value) {
-    // todo, probably need to check this is the right implementation
     return (value + 1) & 0xFFFF; // Increment and wrap around at 0xFFFF
 }
 
@@ -77,10 +76,9 @@ void Cpu::call(Word address, Mem &memory) {
     PC = address;
 }
 
-void _RET(Mem &memory) {
-    // todo 
-    // // Pop return address from stack into PC
-    // PC = popRegFromStack(memory);
+void Cpu::_RET(Mem &memory) {
+    // Pop return address from stack and jump to it
+    popStackToReg(PC, memory);
 }
 
 
@@ -401,11 +399,23 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
                 break;
             }
             case RET_NZ: {
-                // TODO
+                bool currentZFlag = (F >> 7) & 1;
+                if (currentZFlag == 0) {
+                    _RET(PC, memory);
+                    cycles -= opcycles[opcode];
+                } else {
+                    cycles -= 2;
+                }
                 break;
             }
             case RET_NC: {
-                // TODO
+                bool currentCFlag = (F >> 4) & 1;
+                if (currentCFlag == 0) {
+                    _RET(PC, memory);
+                    cycles -= opcycles[opcode];
+                } else {
+                    cycles -= 2;
+                }
                 break;
             }
             case LD_a8mem_A: {
@@ -1100,11 +1110,23 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
                 break;
             }
             case RET_Z: {
-                // TODO
+                bool currentZFlag = (F >> 7) & 1;
+                if (currentZFlag == 1) {
+                    _RET(PC, memory);
+                    cycles -= opcycles[opcode];
+                } else {
+                    cycles -= 2;
+                }
                 break;
             }
             case RET_C: {
-                // TODO
+                bool currentCFlag = (F >> 4) & 1;
+                if (currentCFlag == 1) {
+                    _RET(PC, memory);
+                    cycles -= opcycles[opcode];
+                } else {
+                    cycles -= 2;
+                }
                 break;
             }
             case ADD_SP_s8: {
@@ -1182,13 +1204,14 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
                 break;
             }
             case RET: {
-                // todo check this
-                popStackToReg(PC, memory);
+                _RET(PC, memory);
                 cycles -= opcycles[opcode];
                 break;
             }
             case RETI: {
-                // TODO
+                _RET(PC, memory);
+                // todo enable interrupts here
+                cycles -= opcycles[opcode];
                 break;
             }
             case JP_HL: {

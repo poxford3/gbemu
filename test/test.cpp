@@ -213,6 +213,19 @@ TEST_CASE("POP BC Instruction", "[POP BC]") {
     REQUIRE(cpu.SP == 0x0000); // After POP BC, SP should be incremented by 2 (from 0xFFFE to 0x0000)
 }
 
+TEST_CASE("RET Instruction", "[RET]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = RET; // RET
+    cpu.SP = 0xFFFE; // Set stack pointer to top of stack
+    memory[cpu.SP] = 0x34; // Set value at SP to 0x34 (lower byte of return address)
+    memory[cpu.SP + 1] = 0x12; // Set value at SP+1 to 0x12 (higher byte of return address)
+    cpu.executeInstruction(opcycles[RET], memory);
+    REQUIRE(cpu.PC == 0x1234); // After RET, PC should be loaded with return address from stack (0x1234)
+    REQUIRE(cpu.SP == 0x0000); // After RET, SP should be incremented by 2 (from 0xFFFE to 0x0000)
+}
 
 // need to test the jump/calls to get the different opcycles
 
