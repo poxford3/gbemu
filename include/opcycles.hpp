@@ -1,3 +1,5 @@
+#include "types.hpp"
+
 // opcode cycles
 // https://meganesu.github.io/generate-gb-opcodes/
 static constexpr uint opcycles[256] = {

@@ -106,6 +106,10 @@ struct Cpu {
     void rotateRight(Byte &value, std::optional<bool> throughCarry = std::nullopt);
     void shiftLeft(Byte &value);
     void shiftRight(Byte &value, bool arithmetic);
+    void swapNibbles(Byte &value);
+    void bit(Byte &value, int bit);
+    void res(Byte &value, int bit);
+    void set(Byte &value, int bit);
 
     // math operations
     void addRegToReg(Byte &dest, Byte &src);

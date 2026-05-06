@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdint>
 #include "cpu.hpp"
+#include "types.hpp"
 #include "opcodes.hpp"
 #include "opcycles.hpp"
 
@@ -44,14 +45,6 @@ void Cpu::showAllRegisterValues() {
     std::cout << "SP: 0x" << std::hex << SP << std::dec << std::endl;
     std::cout << "PC: 0x" << std::hex << PC << std::dec << std::endl;
 }
-
-// Byte Cpu::fetchInstruction(uint &cycles, Mem &memory) {
-//     Byte opcode = memory[PC];
-//     std::cout << "Fetched opcode: 0x" << std::hex << static_cast<int>(opcode) << " at address: 0x" << std::hex << PC << std::dec << std::endl;
-//     PC++; // Increment program counter to point to the next instruction
-//     cycles--;
-//     return opcode;
-// }
 
 Byte Cpu::readByte(Mem &memory, Word address) {
     Byte value = memory[address];
@@ -192,6 +185,44 @@ void Cpu::rotateRight(Byte &value, std::optional<bool> throughCarry) {
     updateFlags(value, false, false, oldBit0); // Z flag is set based on result, N H flags are reset, C flag is updated above
 }
 
+void Cpu::shiftLeft(Byte &value) {
+    bool oldBit7 = (value >> 7) & 1; // Get the old bit 7
+    value <<= 1; // Shift left by 1
+    updateFlags(value, false, false, oldBit7); // Z flag is set based on result, N H flags are reset, C flag is updated above
+}
+
+void Cpu::shiftRight(Byte &value, bool arithmetic) {
+    // arithmetic == SRA, logical == SRL
+    bool oldBit0 = value & 1; // Get the old bit 0
+    if (arithmetic) {
+        // For arithmetic shift right, we need to preserve the sign bit (bit 7)
+        value = (value >> 1) | (value & 0x80); // Shift right and preserve bit 7
+    } else {
+        value >>= 1; // Logical shift right
+    }
+    updateFlags(value, false, false, oldBit0); // Z flag is set based on result, N H flags are reset, C flag is updated above
+}
+
+void Cpu::swapNibbles(Byte &value) {
+    value = (value << 4) | (value >> 4); // Swap upper and lower nibbles
+    updateFlags(value, false, false, false); // Z flag is set based on result, N H C flags are reset
+}
+
+void Cpu::bit(Byte &value, int bit) {
+    bool bitValue = (value >> bit) & 1; // Get the value of the specified bit
+    updateFlags(bitValue ? 0 : 1, false, true, false); // Z flag is set based on bit value, N flag is reset, H flag is set, C flag is reset
+}
+
+void Cpu::res(Byte &value, int bit) {
+    value &= ~(1 << bit); // Clear the specified bit
+    updateFlags(value, false, false, false); // Z flag is set based on result, N H C flags are reset
+}
+
+void Cpu::set(Byte &value, int bit) {
+    value |= 1 << bit; // Set the specified bit
+    updateFlags(value, false, false, false); // Z flag is set based on result, N H C flags are reset
+}
+
 
 void Cpu::addRegToReg(Byte &dest, Byte &src) {
     bool flag_h = ((dest & 0x0F) + (src & 0x0F)) > 0x0F; // Set H flag if there is a carry from bit 3
@@ -216,11 +247,10 @@ Word Cpu::addByteToWord(Word &dest, Byte src) {
 }
 
 void Cpu::subRegToReg(Byte &dest, Byte &src) {
-    // todo
-    // flag_h = (dest & 0x0F) < (src & 0x0F); // Set H flag if there is a borrow from bit 4
-    // flag_c = dest < src; // Set C flag if there is a borrow from bit 8
-    // dest -= src;
-    // updateFlags(dest, true, flag_h, flag_c);
+    bool flag_h = (dest & 0x0F) < (src & 0x0F); // Set H flag if there is a borrow from bit 4
+    bool flag_c = dest < src; // Set C flag if there is a borrow from bit 8
+    dest -= src;
+    updateFlags(dest, true, flag_h, flag_c);
 }
 
 
@@ -302,7 +332,7 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
                 break;
             }
             case STOP: {
-                // TODO
+                // TODO, will be clock related
                 std::cout << "Executed STOP" << std::endl;
                 cycles -= opcycles[opcode];
                 break;
@@ -1331,8 +1361,7 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
                 break;
             }
             case 0xCB: {
-                // TODO
-                // will lead to extended opcodes
+                executeExtendedOpcode(cycles, memory);
                 break;
             }
             case EI: {
@@ -1698,16 +1727,1326 @@ void Cpu::executeExtendedOpcode(uint &cycles, Mem &memory) {
     while (cycles > 0) {
         Byte opcode = loadByte(memory);
 
-        // switch (opcode) {
-        //     // case RLC_B: {
-        //     //     rotateLeft(B, false);
-        //     //     cycles -= opcycles[opcode];
-        //     //     break;
-        //     // }
-        //     // TODO
-        //     default:
-        //         std::cout << "Unknown extended opcode: 0xCB 0x" << std::hex << static_cast<int>(opcode) << std::dec << std::endl;
-        //         break;
-        // }
+        switch (opcode) {
+            // x0 extended opcodes
+            case RLC_B: {
+                rotateLeft(B, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RL_B: {
+                rotateLeft(B, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SLA_B: {
+                shiftLeft(B);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SWAP_B: {
+                swapNibbles(B);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_0_B: {
+                bit(B, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_2_B: {
+                bit(B, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_4_B: {
+                bit(B, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_6_B: {
+                bit(B, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_0_B: {
+                res(B, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_2_B: {
+                res(B, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_4_B: {
+                res(B, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_6_B: {
+                res(B, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_0_B: {
+                set(B, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_2_B: {
+                set(B, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_4_B: {
+                set(B, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_6_B: {
+                set(B, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // x1 extended opcodes
+            case RLC_C: {
+                rotateLeft(C, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RL_C: {
+                rotateLeft(C, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SLA_C: {
+                shiftLeft(C);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SWAP_C: {
+                swapNibbles(C);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_0_C: {
+                bit(C, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_2_C: {
+                bit(C, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_4_C: {
+                bit(C, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_6_C: {
+                bit(C, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_0_C: {
+                res(C, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_2_C: {
+                res(C, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_4_C: {
+                res(C, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_6_C: {
+                res(C, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_0_C: {
+                set(C, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_2_C: {
+                set(C, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_4_C: {
+                set(C, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_6_C: {
+                set(C, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // x2 extended opcodes
+            case RLC_D: {
+                rotateLeft(D, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RL_D: {
+                rotateLeft(D, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SLA_D: {
+                shiftLeft(D);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SWAP_D: {
+                swapNibbles(D);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_0_D: {
+                bit(D, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_2_D: {
+                bit(D, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_4_D: {
+                bit(D, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_6_D: {
+                bit(D, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_0_D: {
+                res(D, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_2_D: {
+                res(D, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_4_D: {
+                res(D, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_6_D: {
+                res(D, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_0_D: {
+                set(D, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_2_D: {
+                set(D, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_4_D: {
+                set(D, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_6_D: {
+                set(D, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // x3 extended opcodes
+            case RLC_E: {
+                rotateLeft(E, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RL_E: {
+                rotateLeft(E, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SLA_E: {
+                shiftLeft(E);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SWAP_E: {
+                swapNibbles(E);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_0_E: {
+                bit(E, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_2_E: {
+                bit(E, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_4_E: {
+                bit(E, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_6_E: {
+                bit(E, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_0_E: {
+                res(E, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_2_E: {
+                res(E, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_4_E: {
+                res(E, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_6_E: {
+                res(E, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_0_E: {
+                set(E, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_2_E: {
+                set(E, 2);
+				cycles -= opcyclesExtended[opcode];
+				break;
+			}
+			case SET_4_E: {
+				set(E, 4);
+				cycles -= opcyclesExtended[opcode];
+				break;
+			}
+			case SET_6_E: {
+				set(E, 6);
+				cycles -= opcyclesExtended[opcode];
+				break;
+			}
+
+			// x4 extended opcodes
+            case RLC_H: {
+                rotateLeft(H, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RL_H: {
+                rotateLeft(H, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SLA_H: {
+                shiftLeft(H);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SWAP_H: {
+                swapNibbles(H);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_0_H: {
+                bit(H, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_2_H: {
+                bit(H, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_4_H: {
+                bit(H, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_6_H: {
+                bit(H, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_0_H: {
+                res(H, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_2_H: {
+                res(H, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_4_H: {
+                res(H, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_6_H: {
+                res(H, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_0_H: {
+                set(H, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_2_H: {
+                set(H, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_4_H: {
+                set(H, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_6_H: {
+                set(H, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // x5 extended opcodes
+            case RLC_L: {
+                rotateLeft(L, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RL_L: {
+                rotateLeft(L, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SLA_L: {
+                shiftLeft(L);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SWAP_L: {
+                swapNibbles(L);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_0_L: {
+                bit(L, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_2_L: {
+                bit(L, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_4_L: {
+                bit(L, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_6_L: {
+                bit(L, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_0_L: {
+                res(L, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_2_L: {
+                res(L, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_4_L: {
+                res(L, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_6_L: {
+                res(L, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_0_L: {
+                set(L, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_2_L: {
+                set(L, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_4_L: {
+                set(L, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_6_L: {
+                set(L, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // x6 extended opcodes
+            case RLC_HLmem: {
+                rotateLeft(memory[HL], false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RL_HLmem: {
+                rotateLeft(memory[HL], true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SLA_HLmem: {
+                shiftLeft(memory[HL]);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SWAP_HLmem: {
+                swapNibbles(memory[HL]);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_0_HLmem: {
+                bit(memory[HL], 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_2_HLmem: {
+                bit(memory[HL], 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_4_HLmem: {
+                bit(memory[HL], 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_6_HLmem: {
+                bit(memory[HL], 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_0_HLmem: {
+                res(memory[HL], 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_2_HLmem: {
+                res(memory[HL], 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_4_HLmem: {
+                res(memory[HL], 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_6_HLmem: {
+                res(memory[HL], 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_0_HLmem: {
+                set(memory[HL], 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_2_HLmem: {
+                set(memory[HL], 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_4_HLmem: {
+                set(memory[HL], 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_6_HLmem: {
+                set(memory[HL], 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // x7 extended opcodes
+            case RLC_A: {
+                rotateLeft(A, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RL_A: {
+                rotateLeft(A, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SLA_A: {
+                shiftLeft(A);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SWAP_A: {
+                swapNibbles(A);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_0_A: {
+                bit(A, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_2_A: {
+                bit(A, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_4_A: {
+                bit(A, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_6_A: {
+                bit(A, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_0_A: {
+                res(A, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_2_A: {
+                res(A, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_4_A: {
+                res(A, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_6_A: {
+                res(A, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_0_A: {
+                set(A, 0);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_2_A: {
+                set(A, 2);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_4_A: {
+                set(A, 4);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_6_A: {
+                set(A, 6);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            
+            // x8 extended opcodes
+            case RRC_B: {
+                rotateRight(B, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RR_B: {
+                rotateRight(B, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRA_B: {
+                shiftRight(B, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRL_B: {
+                shiftRight(B, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_1_B: {
+                bit(B, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_3_B: {
+                bit(B, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_5_B: {
+                bit(B, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_7_B: {
+                bit(B, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_1_B: {
+                res(B, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_3_B: {
+                res(B, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_5_B: {
+                res(B, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_7_B: {
+                res(B, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_1_B: {
+                set(B, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_3_B: {
+                set(B, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_5_B: {
+                set(B, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_7_B: {
+                set(B, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // x9 extended opcodes
+            case RRC_C: {
+                rotateRight(C, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RR_C: {
+                rotateRight(C, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRA_C: {
+                shiftRight(C, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRL_C: {
+                shiftRight(C, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_1_C: {
+                bit(C, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_3_C: {
+                bit(C, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_5_C: {
+                bit(C, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_7_C: {
+                bit(C, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_1_C: {
+                res(C, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_3_C: {
+                res(C, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_5_C: {
+                res(C, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_7_C: {
+                res(C, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_1_C: {
+                set(C, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_3_C: {
+                set(C, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_5_C: {
+                set(C, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_7_C: {
+                set(C, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // xA extended opcodes
+            case RRC_D: {
+                rotateRight(D, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RR_D: {
+                rotateRight(D, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRA_D: {
+                shiftRight(D, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRL_D: {
+                shiftRight(D, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_1_D: {
+                bit(D, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_3_D: {
+                bit(D, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_5_D: {
+                bit(D, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_7_D: {
+                bit(D, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_1_D: {
+                res(D, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_3_D: {
+                res(D, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_5_D: {
+                res(D, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_7_D: {
+                res(D, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_1_D: {
+                set(D, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_3_D: {
+                set(D, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_5_D: {
+                set(D, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_7_D: {
+                set(D, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // xB extended opcodes
+            case RRC_E: {
+                rotateRight(E, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RR_E: {
+                rotateRight(E, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRA_E: {
+                shiftRight(E, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRL_E: {
+                shiftRight(E, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_1_E: {
+                bit(E, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_3_E: {
+                bit(E, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_5_E: {
+                bit(E, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_7_E: {
+                bit(E, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_1_E: {
+                res(E, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_3_E: {
+                res(E, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_5_E: {
+                res(E, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_7_E: {
+                res(E, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_1_E: {
+                set(E, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_3_E: {
+                set(E, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_5_E: {
+                set(E, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_7_E: {
+                set(E, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // xC extended opcodes
+            case RRC_H: {
+                rotateRight(H, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RR_H: {
+                rotateRight(H, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRA_H: {
+                shiftRight(H, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRL_H: {
+                shiftRight(H, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_1_H: {
+                bit(H, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_3_H: {
+                bit(H, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_5_H: {
+                bit(H, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_7_H: {
+                bit(H, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_1_H: {
+                res(H, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_3_H: {
+                res(H, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_5_H: {
+                res(H, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_7_H: {
+                res(H, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_1_H: {
+                set(H, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_3_H: {
+                set(H, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_5_H: {
+                set(H, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_7_H: {
+                set(H, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // xD extended opcodes
+            case RRC_L: {
+                rotateRight(L, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RR_L: {
+                rotateRight(L, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRA_L: {
+                shiftRight(L, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRL_L: {
+                shiftRight(L, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_1_L: {
+                bit(L, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_3_L: {
+                bit(L, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_5_L: {
+                bit(L, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_7_L: {
+                bit(L, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_1_L: {
+                res(L, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_3_L: {
+                res(L, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_5_L: {
+                res(L, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_7_L: {
+                res(L, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_1_L: {
+                set(L, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_3_L: {
+                set(L, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_5_L: {
+                set(L, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_7_L: {
+                set(L, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // xE extended opcodes
+            case RRC_HLmem: {
+                rotateRight(memory[HL], false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RR_HLmem: {
+                rotateRight(memory[HL], true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRA_HLmem: {
+                shiftRight(memory[HL], true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRL_HLmem: {
+                shiftRight(memory[HL], false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_1_HLmem: {
+                bit(memory[HL], 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_3_HLmem: {
+                bit(memory[HL], 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_5_HLmem: {
+                bit(memory[HL], 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_7_HLmem: {
+                bit(memory[HL], 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_1_HLmem: {
+                res(memory[HL], 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_3_HLmem: {
+                res(memory[HL], 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_5_HLmem: {
+                res(memory[HL], 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_7_HLmem: {
+                res(memory[HL], 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_1_HLmem: {
+                set(memory[HL], 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_3_HLmem: {
+                set(memory[HL], 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_5_HLmem: {
+                set(memory[HL], 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_7_HLmem: {
+                set(memory[HL], 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+            // xF extended opcodes
+            case RRC_A: {
+                rotateRight(A, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RR_A: {
+                rotateRight(A, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRA_A: {
+                shiftRight(A, true);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SRL_A: {
+                shiftRight(A, false);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_1_A: {
+                bit(A, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_3_A: {
+                bit(A, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_5_A: {
+                bit(A, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case BIT_7_A: {
+                bit(A, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_1_A: {
+                res(A, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_3_A: {
+                res(A, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_5_A: {
+                res(A, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case RES_7_A: {
+                res(A, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_1_A: {
+                set(A, 1);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_3_A: {
+                set(A, 3);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_5_A: {
+                set(A, 5);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+            case SET_7_A: {
+                set(A, 7);
+                cycles -= opcyclesExtended[opcode];
+                break;
+            }
+
+
+            // TODO
+            default:
+                std::cout << "Unknown extended opcode: 0xCB 0x" << std::hex << static_cast<int>(opcode) << std::dec << std::endl;
+                break;
+        }
     }
 };
+
+//

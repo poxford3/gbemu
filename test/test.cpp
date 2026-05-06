@@ -33,6 +33,20 @@ TEST_CASE("ADD instruction", "[ADD]") {
     REQUIRE((cpu.F & 0x10) != 0); // Check that carry flag is set
 }
 
+TEST_CASE("SUB B Instruction", "[SUB B]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = SUB_B; // SUB B from A
+    cpu.A = 0x50;
+    cpu.B = 0x20;
+    Byte expectedResult = static_cast<Byte>(0x50 - 0x20); // 0x30
+    cpu.executeInstruction(opcycles[SUB_B], memory);
+    REQUIRE(cpu.A == expectedResult);
+    REQUIRE(cpu.F == 0b01000000); // Check that N flag is set and C flag is reset
+}
+
 TEST_CASE("RRA Instruction", "[RRA]") {
     Mem memory;
     Cpu cpu;
