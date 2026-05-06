@@ -19,6 +19,18 @@ find_package(SFML 3 REQUIRED COMPONENTS Graphics Window System)
 find_path(NFD_INCLUDE_DIR nfd.h PATHS /opt/homebrew/include)
 find_library(NFD_LIBRARY nfd PATHS /opt/homebrew/lib)
 
+# Find Catch2 (for testing)
+find_package(Catch2 3 REQUIRED)
+# These tests can use the Catch2-provided main
+add_executable(tests 
+    test/test.cpp
+    src/cpu.cpp)
+target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
+
+# These tests need their own main
+# add_executable(custom-main-tests test.cpp test-main.cpp)
+# target_link_libraries(custom-main-tests PRIVATE Catch2::Catch2)
+
 # Source files
 file(GLOB SRC_FILES src/*.cpp)
 
