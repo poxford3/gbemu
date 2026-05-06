@@ -57,6 +57,15 @@ int main() {
     memory[0x0101] = ADD_A_B;
     cpu.executeInstruction(opcycles[ADD_A_B], memory);
     cpu.showAllRegisterValues();
+
+    printf("\n\n");
+
+    cpu.reset(memory);
+    memory[0x0100] = RRA;
+    cpu.A = 0b10010001;
+    cpu.F = 0b00010000; // Set C flag to 1 for testing RRA through carry
+    cpu.executeInstruction(opcycles[RRA], memory);
+    cpu.showAllRegisterValues();
     // end test
 
 

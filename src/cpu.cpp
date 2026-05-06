@@ -67,30 +67,6 @@ Word Cpu::decWord(Word value) {
     return (value - 1) & 0xFFFF; // Decrement and wrap around at 0x0000
 }
 
-void Cpu::rotateLeft(Byte &value, std::optional<bool> throughCarry) {
-
-    bool oldBit7 = (value >> 7) & 1; // Get the old bit 7
-    value <<= 1; // Shift left by 1
-    if (throughCarry.has_value() && throughCarry.value()) {
-        value |= (F & 0x10) >> 4; // Rotate through carry: old bit 7 goes to carry, and old carry goes to bit 0 (RL)
-    } else {
-        value |= oldBit7 ? 1 : 0; // Rotate: old bit 7 goes to bit 0 (RLC)
-    }
-    // either way, old bit 7 goes to carry
-    F = (F & 0xEF) | (oldBit7 ? 0x10 : 0); // Update carry flag based on old bit 7
-}
-
-void Cpu::rotateRight(Byte &value, std::optional<bool> throughCarry) {
-    bool oldBit0 = value & 1; // Get the old bit 0
-    value >>= 1; // Shift right by 1
-    if (throughCarry.has_value() && throughCarry.value()) {
-        value |= (F & 0x10) << 3; // Rotate through carry: old bit 0 goes to carry, and old carry goes to bit 7
-    } else {
-        value |= oldBit0 ? 0x80 : 0; // Rotate: old bit 0 goes to bit 7
-    }
-    F = (F & 0xEF) | (oldBit0 ? 0x10 : 0); // Update carry flag based on old bit 0
-}
-
 void Cpu::jp(Word address) {
     // jump to address
     PC = address;
@@ -106,6 +82,12 @@ void Cpu::call(Word address, Mem &memory) {
     pushRegToStack(PC, memory);
     // Jump to the specified address
     PC = address;
+}
+
+void _RET(Mem &memory) {
+    // todo 
+    // // Pop return address from stack into PC
+    // PC = popRegFromStack(memory);
 }
 
 
@@ -163,6 +145,53 @@ void Cpu::xorRegToA(Byte &src) {
     updateFlags(A, false, false, false); // Z flag is set based on result, N H C flags are reset
 }
 
+void Cpu::_RRA(std::optional<bool> throughCarry) {
+    bool oldBit0 = A & 1; // Get the old bit 0
+    A >>= 1; // Shift right by 1
+    if (throughCarry.has_value() && throughCarry.value()) {
+        A |= (F & 0x10) << 3; // Rotate through carry: old bit 0 goes to carry, and old carry goes to bit 7
+    } else {
+        A |= oldBit0 ? 0x80 : 0; // Rotate: old bit 0 goes to bit 7
+    }
+    // RR(C)A affects the Z flag directly to zero by passing in any value BUT zero
+    updateFlags(0x01, false, false, oldBit0); // Z flag is set based on result, N H flags are reset, C flag is updated above
+}
+
+void Cpu::_RLA(std::optional<bool> throughCarry) {
+    bool oldBit7 = (A >> 7) & 1; // Get the old bit 7
+    A <<= 1; // Shift left by 1
+    if (throughCarry.has_value() && throughCarry.value()) {
+        A |= (F & 0x10) >> 4; // Rotate through carry: old bit 7 goes to carry, and old carry goes to bit 0 (RL)
+    } else {
+        A |= oldBit7 ? 1 : 0; // Rotate: old bit 7 goes to bit 0 (RLC)
+    }
+    // RL(C)A affects Z flag directly to zero by passing in any value BUT zero
+    updateFlags(0x01, false, false, oldBit7); // Z flag is set based on result, N H flags are reset, C flag is updated above
+}
+
+void Cpu::rotateLeft(Byte &value, std::optional<bool> throughCarry) {
+    bool oldBit7 = (value >> 7) & 1; // Get the old bit 7
+    value <<= 1; // Shift left by 1
+    if (throughCarry.has_value() && throughCarry.value()) {
+        value |= (F & 0x10) >> 4; // Rotate through carry: old bit 7 goes to carry, and old carry goes to bit 0 (RL)
+    } else {
+        value |= oldBit7 ? 1 : 0; // Rotate: old bit 7 goes to bit 0 (RLC)
+    }
+    // either way, old bit 7 goes to carry
+    updateFlags(value, false, false, oldBit7); // Z flag is set based on result, N H flags are reset, C flag is updated above
+}
+
+void Cpu::rotateRight(Byte &value, std::optional<bool> throughCarry) {
+    bool oldBit0 = value & 1; // Get the old bit 0
+    value >>= 1; // Shift right by 1
+    if (throughCarry.has_value() && throughCarry.value()) {
+        value |= (F & 0x10) << 3; // Rotate through carry: old bit 0 goes to carry, and old carry goes to bit 7
+    } else {
+        value |= oldBit0 ? 0x80 : 0; // Rotate: old bit 0 goes to bit 7
+    }
+    updateFlags(value, false, false, oldBit0); // Z flag is set based on result, N H flags are reset, C flag is updated above
+}
+
 
 void Cpu::addRegToReg(Byte &dest, Byte &src) {
     bool flag_h = ((dest & 0x0F) + (src & 0x0F)) > 0x0F; // Set H flag if there is a carry from bit 3
@@ -193,6 +222,7 @@ void Cpu::subRegToReg(Byte &dest, Byte &src) {
     // dest -= src;
     // updateFlags(dest, true, flag_h, flag_c);
 }
+
 
 // these need good testing
 void Cpu::ADC(Byte src) {
@@ -876,12 +906,12 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
 
             // x7 opcodes
             case RLCA: {
-                rotateLeft(A, false);
+                _RLA(false);
                 cycles -= opcycles[opcode] - 1;
                 break;
             }
             case RLA: {
-                rotateLeft(A, true);
+                _RLA(true);
                 cycles -= opcycles[opcode] - 1;
                 break;
             }
@@ -1299,6 +1329,11 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
                 cycles -= opcycles[opcode] - 1;
                 break;
             }
+            case 0xCB: {
+                // TODO
+                // will lead to extended opcodes
+                break;
+            }
             case EI: {
                 // TODO
                 break;
@@ -1551,12 +1586,12 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             
             // xF opcodes
             case RRCA: {
-                rotateRight(A, false);
+                _RRA(false);
                 cycles -= opcycles[opcode] - 1;
                 break;
             }
             case RRA: {
-                rotateRight(A, true);
+                _RRA(true);
                 cycles -= opcycles[opcode] - 1;
                 break;
             }
@@ -1653,5 +1688,18 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
                     std::cout << "Unknown opcode: 0x" << std::hex << static_cast<int>(opcode) << std::dec << std::endl;
                     break;
         }
+    }
+};
+void Cpu::executeExtendedOpcode(Byte opcode, Mem &memory) {
+    switch (opcode) {
+        // case RLC_B: {
+        //     rotateLeft(B, false);
+        //     cycles -= opcycles[opcode] - 1;
+        //     break;
+        // }
+        // TODO
+        default:
+            std::cout << "Unknown extended opcode: 0xCB 0x" << std::hex << static_cast<int>(opcode) << std::dec << std::endl;
+            break;
     }
 };

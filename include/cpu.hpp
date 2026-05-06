@@ -82,12 +82,10 @@ struct Cpu {
     Byte readByte(Mem &memory, Word address);
     Word incWord(Word value); // increment a 16-bit word, wrapping around at 0xFFFF
     Word decWord(Word value); // decrement a 16-bit word, wrapping around at 0x0000
-    void rotateLeft(Byte &value, std::optional<bool> throughCarry = std::nullopt);
-    void rotateRight(Byte &value, std::optional<bool> throughCarry = std::nullopt);
     void jp(Word address);
     void jr(int8_t offset);
     void call(Word address, Mem &memory);
-    void RET(Mem &memory);
+    void _RET(Mem &memory);
 
     // load operations
     Word loadWord(Mem &memory);
@@ -102,6 +100,12 @@ struct Cpu {
     void andRegToA(Byte &src);
     void orRegToA(Byte &src);
     void xorRegToA(Byte &src);
+    void _RRA(std::optional<bool> throughCarry = std::nullopt);
+    void _RLA(std::optional<bool> throughCarry = std::nullopt);
+    void rotateLeft(Byte &value, std::optional<bool> throughCarry = std::nullopt);
+    void rotateRight(Byte &value, std::optional<bool> throughCarry = std::nullopt);
+    void shiftLeft(Byte &value);
+    void shiftRight(Byte &value, bool arithmetic);
 
     // math operations
     void addRegToReg(Byte &dest, Byte &src);
@@ -118,6 +122,7 @@ struct Cpu {
 
     Byte fetchInstruction(uint &cycles, Mem &memory);
     void executeInstruction(uint cycles, Mem &memory);
+    void executeExtendedOpcode(Byte opcode, Mem &memory);
     void showAllRegisterValues();
 
 };
