@@ -200,5 +200,6 @@ TEST_CASE("POP BC Instruction", "[POP BC]") {
 }
 
 
+// need to test the jump/calls to get the different opcycles
 
 //
