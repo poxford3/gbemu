@@ -1,13 +1,15 @@
 #include <iostream>
 #include <nfd.h>
 #include "window.hpp"
+#include "gameboy.hpp"
+#include "types.hpp"
 
 EmuWindow::EmuWindow() {}
 
 void EmuWindow::run() {
     int gbHeight = 160;
     int gbWidth = 144;
-    int scale = 2;
+    int scale = 3;
     unsigned windowWidth = gbWidth * scale;
     unsigned windowHeight = gbHeight * scale;
     sf::RenderWindow window(
@@ -45,10 +47,16 @@ void EmuWindow::run() {
                 // Check if the mouse click is within the button's bounds
                 if (button.getGlobalBounds().contains({(float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y})) {
                     std::cout << "Button clicked!" << std::endl;
-                    FileHandler test = getFileFromUser();
-                    std::vector<unsigned char> buffer = test.readFile();
-                    test.readRandomValues(buffer, 0, 32);
-                    text.setString("file loaded!");
+                    FileHandler rom = getFileFromUser();
+                    // std::vector<Byte> buffer = rom.readFile();
+                    std::vector<Byte> buffer = rom.readFile();
+                    // rom.readRandomValues(buffer, 0, 32);
+                    if (buffer.size() > 0) {
+                        Gameboy gameboy(buffer);
+                        text.setString("file loaded!");
+                    } else {
+                        text.setString("file canceled/error");
+                    }
                 }
             }
         }

@@ -23,6 +23,20 @@ void Cpu::reset(Mem &memory) {
     memory.init(); // Initialize memory to 0
 }
 
+void Cpu::loadProgram(std::vector<Byte> program, uint numBytes, Mem &memory) {
+    Word loadAddress = 0;
+    if (numBytes > 2) {
+        uint At = 0;
+        Word lo = program[At++];
+        Word hi = program[At++] << 8;
+        loadAddress = lo | hi;
+        uint maxValue = loadAddress + numBytes - 2;
+        for (Word i = loadAddress; i < maxValue; i++) {
+            memory[i] = program[At++];
+        }
+    } 
+};
+
 void Cpu::updateFlags(Byte result, bool isSubtraction, bool halfCarry, bool carry) {
     bool flag_z = (result == 0); // Set Z flag if result is zero
     bool flag_n = isSubtraction; // Set N flag for subtraction, reset for addition
@@ -207,16 +221,19 @@ void Cpu::swapNibbles(Byte &value) {
 }
 
 void Cpu::bit(Byte &value, int bit) {
+    // bit test
     bool bitValue = (value >> bit) & 1; // Get the value of the specified bit
     updateFlags(bitValue ? 0 : 1, false, true, false); // Z flag is set based on bit value, N flag is reset, H flag is set, C flag is reset
 }
 
 void Cpu::res(Byte &value, int bit) {
+    // reset bit
     value &= ~(1 << bit); // Clear the specified bit
     updateFlags(value, false, false, false); // Z flag is set based on result, N H C flags are reset
 }
 
 void Cpu::set(Byte &value, int bit) {
+    // set bit
     value |= 1 << bit; // Set the specified bit
     updateFlags(value, false, false, false); // Z flag is set based on result, N H C flags are reset
 }
@@ -401,7 +418,7 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             case RET_NZ: {
                 bool currentZFlag = (F >> 7) & 1;
                 if (currentZFlag == 0) {
-                    _RET(PC, memory);
+                    _RET(memory);
                     cycles -= opcycles[opcode];
                 } else {
                     cycles -= 2;
@@ -411,7 +428,7 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             case RET_NC: {
                 bool currentCFlag = (F >> 4) & 1;
                 if (currentCFlag == 0) {
-                    _RET(PC, memory);
+                    _RET(memory);
                     cycles -= opcycles[opcode];
                 } else {
                     cycles -= 2;
@@ -1112,7 +1129,7 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             case RET_Z: {
                 bool currentZFlag = (F >> 7) & 1;
                 if (currentZFlag == 1) {
-                    _RET(PC, memory);
+                    _RET(memory);
                     cycles -= opcycles[opcode];
                 } else {
                     cycles -= 2;
@@ -1122,7 +1139,7 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
             case RET_C: {
                 bool currentCFlag = (F >> 4) & 1;
                 if (currentCFlag == 1) {
-                    _RET(PC, memory);
+                    _RET(memory);
                     cycles -= opcycles[opcode];
                 } else {
                     cycles -= 2;
@@ -1204,12 +1221,12 @@ void Cpu::executeInstruction(uint cycles, Mem &memory) {
                 break;
             }
             case RET: {
-                _RET(PC, memory);
+                _RET(memory);
                 cycles -= opcycles[opcode];
                 break;
             }
             case RETI: {
-                _RET(PC, memory);
+                _RET(memory);
                 // todo enable interrupts here
                 cycles -= opcycles[opcode];
                 break;

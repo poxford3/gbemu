@@ -78,6 +78,7 @@ struct Cpu {
     };
 
     void reset(Mem &memory);
+    void loadProgram(std::vector<Byte> program, uint numBytes, Mem &memory);
     void updateFlags(Byte result, bool isSubtraction, bool halfCarry, bool carry);
     Byte readByte(Mem &memory, Word address);
     Word incWord(Word value); // increment a 16-bit word, wrapping around at 0xFFFF
@@ -124,10 +125,11 @@ struct Cpu {
     void popStackToReg(Word &reg, Mem &memory);
     void pushRegToStack(Word reg, Mem &memory);
 
-    // Byte fetchInstruction(uint &cycles, Mem &memory);
     void executeInstruction(uint cycles, Mem &memory);
     void executeExtendedOpcode(uint &cycles, Mem &memory);
     void showAllRegisterValues();
+
+    
 
 };
 

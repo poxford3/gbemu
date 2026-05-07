@@ -10,12 +10,12 @@
 
 int main() {
 
-    Mem memory;
-    Cpu cpu;
-    cpu.reset(memory);
+    // Mem memory;
+    // Cpu cpu;
+    // cpu.reset(memory);
 
-    // EmuWindow emuWindow;
-    // emuWindow.run();
+    EmuWindow emuWindow;
+    emuWindow.run();
 
 
     return 0;
