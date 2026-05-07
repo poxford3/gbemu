@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 #include "window.hpp"
+#include "gameboy.hpp"
 #include "file.hpp"
 #include "cpu.hpp"
 #include "opcodes.hpp"
@@ -10,12 +11,16 @@
 
 int main() {
 
-    // Mem memory;
-    // Cpu cpu;
-    // cpu.reset(memory);
+    std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/01-special.gb";
+    FileHandler fileH(path);
+    Gameboy gameboy (fileH.readFile());
 
-    EmuWindow emuWindow;
-    emuWindow.run();
+    while (1) {
+        gameboy.tick();
+    }
+
+    // EmuWindow emuWindow;
+    // emuWindow.run();
 
 
     return 0;

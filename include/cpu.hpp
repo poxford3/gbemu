@@ -42,6 +42,7 @@ struct Cpu {
 
     Word PC; // program counter
     Word SP; // stack pointer
+    uint numBytes;
 
     // https://gbdev.io/pandocs/CPU_Registers_and_Flags.html#the-flags-register-lower-8-bits-of-af-register
     // https://stackoverflow.com/questions/57958631/game-boy-half-carry-flag-and-16-bit-instructions-especially-opcode-0xe8
@@ -79,6 +80,7 @@ struct Cpu {
 
     void reset(Mem &memory);
     void loadProgram(std::vector<Byte> program, uint numBytes, Mem &memory);
+    void runProgram(Mem &memory);
     void updateFlags(Byte result, bool isSubtraction, bool halfCarry, bool carry);
     Byte readByte(Mem &memory, Word address);
     Word incWord(Word value); // increment a 16-bit word, wrapping around at 0xFFFF
@@ -87,6 +89,7 @@ struct Cpu {
     void jr(int8_t offset);
     void call(Word address, Mem &memory);
     void _RET(Mem &memory);
+    void EI();
 
     // load operations
     Word loadWord(Mem &memory);
@@ -125,7 +128,7 @@ struct Cpu {
     void popStackToReg(Word &reg, Mem &memory);
     void pushRegToStack(Word reg, Mem &memory);
 
-    void executeInstruction(uint cycles, Mem &memory);
+    void executeInstructions(uint cycles, Byte opcode, Mem &memory);
     void executeExtendedOpcode(uint &cycles, Mem &memory);
     void showAllRegisterValues();
 

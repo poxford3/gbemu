@@ -8,17 +8,14 @@ Gameboy::Gameboy() {
 Gameboy::Gameboy(const std::vector<Byte>& program) {
     start();
 
-    std::cout << "num bytes of prog: " << program.size() << std::endl;
+    // std::cout << "num bytes of prog: " << program.size() << std::endl;
+    uint numBytes = program.size();
     
-    cpu.loadProgram(program, program.size(), memory);
-    if (checksum()) {
-        std::cout << "passed checksum" << std::endl;
-        // clock start
-        // execute commands etc
-    } else {
-        // todo
-        std::cout << "passed checksum" << std::endl;
-    }
+    std::cout << "before memory at 0x0101: " << std::hex << (int)memory[0x0101] << std::dec << std::endl;
+    cpu.loadProgram(program, numBytes, memory);
+    std::cout << "after memory at 0x0101: " << std::hex << (int)memory[0x0101] << std::dec << std::endl;
+
+    checksumPassed = checksum();
 }
 
 void Gameboy::start() {
@@ -27,6 +24,25 @@ void Gameboy::start() {
 
 void Gameboy::stop() {
     // todo
+}
+
+void Gameboy::tick() {
+    if (checksumPassed) {
+
+        
+        Byte opcode = cpu.loadByte(memory);
+
+        std::cout << "opcode: (0x" << std::hex << static_cast<int>(opcode) << "), AF: 0x" << std::hex << static_cast<int>(cpu.AF) << std::dec;
+        std::printf(" PC: 0x%04X", cpu.PC);
+        std::printf(" SP: 0x%04X\n", cpu.SP);
+
+        if (cpu.PC == 0xC001) {
+            printf("JP operand bytes: %02X %02X\n", 
+                cpu.readByte(memory, 0xC002), cpu.readByte(memory, 0xC003));
+        }
+
+        cpu.executeInstructions(100, opcode, memory);
+    }
 }
 
 bool Gameboy::checksum() {

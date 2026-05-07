@@ -11,6 +11,7 @@ class EmuWindow {
         EmuWindow();
         void run();
         FileHandler getFileFromUser();
+        void getInputs();
     private:
         sf::Window window;
 };

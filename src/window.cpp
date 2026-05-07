@@ -16,6 +16,7 @@ void EmuWindow::run() {
         sf::VideoMode({windowWidth, windowHeight}),
         "GB Emulator",
         sf::Style::Titlebar | sf::Style::Close);
+    window.setFramerateLimit(60);
     std::cout << "Running window loop..." << std::endl;
 
     // button
@@ -35,37 +36,54 @@ void EmuWindow::run() {
     text.setCharacterSize(24);
     text.setFillColor(sf::Color::Black);
     text.setPosition({x + 50, y + 80});
+    
+    // to show fps, uncomment
+    // sf::Clock clock;
 
     while (window.isOpen()) {
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
                 window.close();
             }
+        }
 
-            // Check for mouse button press
-            if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
-                // Check if the mouse click is within the button's bounds
-                if (button.getGlobalBounds().contains({(float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y})) {
-                    std::cout << "Button clicked!" << std::endl;
-                    FileHandler rom = getFileFromUser();
-                    // std::vector<Byte> buffer = rom.readFile();
-                    std::vector<Byte> buffer = rom.readFile();
-                    // rom.readRandomValues(buffer, 0, 32);
-                    if (buffer.size() > 0) {
-                        Gameboy gameboy(buffer);
-                        text.setString("file loaded!");
-                    } else {
-                        text.setString("file canceled/error");
-                    }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::P)) {
+            std::cout << "pushin p" << std::endl;
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
+            // todo up
+        }
+
+        // Check for mouse button press
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
+            // Check if the mouse click is within the button's bounds
+            if (button.getGlobalBounds().contains({(float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y})) {
+                std::cout << "Button clicked!" << std::endl;
+                FileHandler rom = getFileFromUser();
+                std::vector<Byte> buffer = rom.readFile();
+                if (buffer.size() > 0) {
+                    Gameboy gameboy(buffer);
+                    text.setString("file loaded!");
+                } else {
+                    text.setString("file canceled/error");
                 }
             }
         }
+
+
+        // show fps
+        // std::cout << 1000000.0f / clock.getElapsedTime().asMicroseconds() << '\n';
+        // clock.restart();
 
         window.clear();
         window.draw(button);
         window.draw(text);
         window.display();
     }
+}
+
+void getInputs() {
+
 }
 
 
