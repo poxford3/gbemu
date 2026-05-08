@@ -4,6 +4,10 @@
 
 FileHandler::FileHandler(const std::string& filePath) : m_filePath{filePath} {}
 
+/**
+ * readFile()
+ * @return std::vector<Byte> array of data from binary file
+ */
 std::vector<Byte> FileHandler::readFile() {
     std::vector<Byte> buffer;
     std::ifstream file(m_filePath, std::ios::binary);

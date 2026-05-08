@@ -15,8 +15,10 @@ int main() {
     FileHandler fileH(path);
     Gameboy gameboy (fileH.readFile());
 
-    while (1) {
-        gameboy.tick();
+    if (gameboy.checksumPassed) {
+        while (1) {
+            gameboy.tick();
+        }
     }
 
     // EmuWindow emuWindow;

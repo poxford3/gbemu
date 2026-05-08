@@ -21,12 +21,79 @@ void Cpu::reset(Mem &memory) {
     L = 0x4D;
 
     memory.init(); // Initialize memory to 0
+
+    IME = false;
+    pendingIME = false;
+
+    memory[P1] = 0xCF;
+    memory[SB] = 0x0;
+    memory[SC] = 0x7E;
+    memory[DIV] = 0x18;
+    memory[TIMA] = 0x0;
+    memory[TMA] = 0x0;
+    memory[TAC] = 0xF8;
+    memory[IF] = 0xE1;
+    memory[NR10] = 0x80;
+    memory[NR11] = 0xBF;
+    memory[NR12] = 0xF3;
+    memory[NR13] = 0xFF;
+    memory[NR14] = 0xBF;
+    memory[NR21] = 0x3F;
+    memory[NR22] = 0x0;
+    memory[NR23] = 0xFF;
+    memory[NR24] = 0xBF;
+    memory[NR30] = 0x7F;
+    memory[NR31] = 0xFF;
+    memory[NR32] = 0x9F;
+    memory[NR33] = 0xFF;
+    memory[NR34] = 0xBF;
+    memory[NR41] = 0xFF;
+    memory[NR42] = 0x0;
+    memory[NR43] = 0x0;
+    memory[NR44] = 0xBF;
+    memory[NR50] = 0x77;
+    memory[NR51] = 0xF3;
+    memory[NR52] = 0xF1;
+    memory[LCDC] = 0x91;
+    memory[STAT] = 0x81;
+    memory[SCY] = 0x0;
+    memory[SCX] = 0x0;
+    memory[LY] = 0x91;
+    memory[LYC] = 0x0;
+    memory[DMA] = 0xFF;
+    memory[BGP] = 0xFC;
+    // memory[OBP0] = 0x??7
+    // memory[OBP1] = 0x??7
+    memory[WY] = 0x0;
+    memory[WX] = 0x0;
+    // memory[KEY0] = 0x—
+    // memory[KEY1] = 0x—
+    // memory[VBK] = 0x—
+    // memory[BANK] = 0x—
+    // memory[HDMA1] = 0x—
+    // memory[HDMA2] = 0x—
+    // memory[HDMA3] = 0x—
+    // memory[HDMA4] = 0x—
+    // memory[HDMA5] = 0x—
+    // memory[RP] = 0x—
+    // memory[BCPS] = 0x—
+    // memory[BCPD] = 0x—
+    // memory[OCPS] = 0x—
+    // memory[OCPD] = 0x—
+    // memory[SVBK] = 0x—
+    memory[IE] = 0x0;
 }
 
 void Cpu::loadProgram(std::vector<Byte> program, uint numBytes, Mem &memory) {
+    // check for less than 0x8000 since that's the 32kb limit of cart rom
     for (uint i = 0; i < numBytes && i < 0x8000; i++) {
         memory[i] = program[i];
     }
+
+    printf("ROM header: %02X %02X %02X %02X\n", 
+    memory[0x0100], memory[0x0101], memory[0x0102], memory[0x0103]);
+    printf("MBC type: %02X\n", memory[0x0147]);
+    printf("ROM size: %02X\n", memory[0x0148]);
 };
 
 void Cpu::runProgram(Mem &memory) {
@@ -97,13 +164,50 @@ void Cpu::call(Word address, Mem &memory) {
     PC = address;
 }
 
+void Cpu::handleInterrupt(Mem &memory) {
+    if (!IME) return;
+
+    Byte pending = memory[IE] & memory[IF];
+
+    if (pending == 0) return;
+
+    // get highest priority interrupt (bit 0 = highest)
+    for (int i = 0; i < 5; i++) {
+        if (pending & (1 << i)) {
+            IME = false;
+            memory[IF] &= ~(1 << i); // clear IF
+            pushRegToStack(PC, memory); // save PC
+        }
+
+        switch (i) {
+            case 0: PC = 0x0040; // VBlank
+            case 1: PC = 0x0048; // LCD
+            case 2: PC = 0x0050; // Timer
+            case 3: PC = 0x0058; // Serial
+            case 4: PC = 0x0060; // Joypad
+        }
+        // cycles -= 20; // would need to implement this once clock is done
+        return;
+    }
+
+
+}
+
 void Cpu::_RET(Mem &memory) {
     // Pop return address from stack and jump to it
     popStackToReg(PC, memory);
 }
 
-void Cpu::EI() {
+void Cpu::_EI() {
+    // enable interrupts
+    // memory[IE] = 0x0001;
+    pendingIME = true;
+}
 
+void Cpu::_DI() {
+    // memory[IE] = 0x0000;
+    IME = false;
+    pendingIME = false;
 }
 
 
@@ -131,6 +235,9 @@ void Cpu::loadRegToReg(Word &dest, Word &src) {
 }
 
 void Cpu::loadRegToMemory(Mem &memory, Word address, Byte &reg) {
+    if (address == 0xFF02) {
+        printf("SC write: %02X SB: %02X PC: %04X\n", reg, memory[0xFF01], PC);
+    }
     memory[address] = reg;
     if (memory[0xFF02] == 0x81) {
         char c = memory[0xFF01];
@@ -344,9 +451,9 @@ void Cpu::popStackToReg(Word &reg, Mem &memory) {
 }
 
 void Cpu::pushRegToStack(Word reg, Mem &memory) {
-    SP -= 1;
+    --SP;
     memory[SP] = (reg >> 8) & 0xFF; // Push high byte onto stack
-    SP -= 1;
+    --SP;
     memory[SP] = reg & 0xFF; // Push low byte onto stack
 }
 
@@ -706,7 +813,7 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case DI: {
-            // TODO
+            _DI();
             break;
         }
 
@@ -783,6 +890,7 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
                 // if condition not met, number of cycles required goes to 3
                 cycles -= 3;
             }
+            break;
         }
         case CALL_NC_a16: {
             bool c_flag = (F >> 4) & 1;
@@ -923,7 +1031,8 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case HALT: {
-            // TODO
+            halted = true;
+            cycles -= opcycles[opcode];
             break;
         }
         case ADD_A_HLmem: {
@@ -1241,7 +1350,7 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
         }
         case RETI: {
             _RET(memory);
-            EI();
+            _EI();
             cycles -= opcycles[opcode];
             break;
         }
@@ -1419,7 +1528,7 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case EI: {
-            // TODO
+            _EI();
             break;
         }
 
@@ -1494,6 +1603,7 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
                 // if condition not met, number of cycles required goes to 3
                 cycles -= 3;
             }
+            break;
         }
         case CALL_C_a16: {
             bool c_flag = (F >> 4) & 1;
@@ -1505,6 +1615,7 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
                 // if condition not met, number of cycles required goes to 3
                 cycles -= 3;
             }
+            break;
         }
 
         // xD opcodes

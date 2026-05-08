@@ -16,6 +16,7 @@ Gameboy::Gameboy(const std::vector<Byte>& program) {
     std::cout << "after memory at 0x0101: " << std::hex << (int)memory[0x0101] << std::dec << std::endl;
 
     checksumPassed = checksum();
+    std::cout << (checksumPassed ? "checksum passed" : "checksum failed") << std::endl;
 }
 
 void Gameboy::start() {
@@ -27,22 +28,17 @@ void Gameboy::stop() {
 }
 
 void Gameboy::tick() {
-    if (checksumPassed) {
-
-        
-        Byte opcode = cpu.loadByte(memory);
-
-        std::cout << "opcode: (0x" << std::hex << static_cast<int>(opcode) << "), AF: 0x" << std::hex << static_cast<int>(cpu.AF) << std::dec;
-        std::printf(" PC: 0x%04X", cpu.PC);
-        std::printf(" SP: 0x%04X\n", cpu.SP);
-
-        if (cpu.PC == 0xC001) {
-            printf("JP operand bytes: %02X %02X\n", 
-                cpu.readByte(memory, 0xC002), cpu.readByte(memory, 0xC003));
+    cpu.handleInterrupt(memory);
+    
+    if (cpu.halted) {
+        if (memory[cpu.IE] & memory[cpu.IF]) {
+            cpu.halted = false;
         }
-
-        cpu.executeInstructions(100, opcode, memory);
+        return;
     }
+    
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(100, opcode, memory);
 }
 
 bool Gameboy::checksum() {
@@ -53,4 +49,11 @@ bool Gameboy::checksum() {
     }
     // if the memory address at 0x014D matches bottom 8 bits of checksum, header passes
     return memory[0x014D] == (checksum & 0xFF) ? true : false;
+}
+
+void Gameboy::printMemory() {
+    // bricks script, JUST for testing
+    for (uint i = 0x0; i <= 0x10000; i++) {
+        std::cout << "memory[" << i << "] = " << std::hex << (int)memory[i] << std::endl;
+    }
 }

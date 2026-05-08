@@ -47,7 +47,7 @@ TEST_CASE("SUB B Instruction", "[SUB B]") {
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[SUB_B], opcode, memory);
     REQUIRE(cpu.A == expectedResult);
-    REQUIRE(cpu.F == 0b01000000); // Check that N flag is set and C flag is reset
+    REQUIRE(cpu.F == 0b0100'0000); // Check that N flag is set and C flag is reset
 }
 
 TEST_CASE("RRA Instruction", "[RRA]") {
@@ -56,11 +56,11 @@ TEST_CASE("RRA Instruction", "[RRA]") {
     cpu.reset(memory);
 
     memory[cpu.PC] = RRA; // Rotate A right
-    cpu.A = 0b10010001;
-    cpu.F = 0b00010000;
+    cpu.A = 0b1001'0001;
+    cpu.F = 0b0001'0000;
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[RRA], opcode, memory);
-    REQUIRE(cpu.A == 0b11001000); // After RRA, A should be rotated right and bit 7 should be set to old bit 0
+    REQUIRE(cpu.A == 0b1100'1000); // After RRA, A should be rotated right and bit 7 should be set to old bit 0
     REQUIRE(cpu.F == 0x10);
 }
 
@@ -70,11 +70,11 @@ TEST_CASE("RLA Instruction", "[RLA]") {
     cpu.reset(memory);
 
     memory[cpu.PC] = RLA; // Rotate A left
-    cpu.A = 0b10010001;
-    cpu.F = 0b00010000; // Set C flag to 1 for testing RLA through carry
+    cpu.A = 0b1001'0001;
+    cpu.F = 0b0001'0000; // Set C flag to 1 for testing RLA through carry
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[RLA], opcode, memory);
-    REQUIRE(cpu.A == 0b00100011); // c8
+    REQUIRE(cpu.A == 0b0010'0011); // c8
     REQUIRE(cpu.F == 0x10);
 }
 
@@ -84,11 +84,11 @@ TEST_CASE("RLCA Instruction", "[RLCA]") {
     cpu.reset(memory);
 
     memory[cpu.PC] = RLCA;
-    cpu.A = 0b10010001;
-    cpu.F = 0b00010000; // Set C flag to 1 for testing RLA through carry
+    cpu.A = 0b1001'0001;
+    cpu.F = 0b0001'0000; // Set C flag to 1 for testing RLA through carry
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[RLCA], opcode, memory);
-    REQUIRE(cpu.A == 0b00100011); // 23
+    REQUIRE(cpu.A == 0b0010'0011); // 23
     REQUIRE(cpu.F == 0x10);
 }
 
@@ -119,6 +119,71 @@ TEST_CASE("LD (BC), A Instruction", "[LD (BC),A]") {
     REQUIRE(memory[cpu.BC] == 0x42); // After LD (BC),A, memory at address BC should be loaded with value of A (0x42)
 }
 
+TEST_CASE("LDi Instruction", "[LDi], A") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = LD_HLi_A; // load A into memory location HL and increment HL
+    cpu.A = 0x69;
+    cpu.HL = 0x1010;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[LD_HLi_A], opcode, memory);
+    REQUIRE(memory[0x1010] == 0x69);
+    REQUIRE(cpu.HL == ((0x1010 + 1) & 0xFFFF)); // check if the HL register pair has incresaed by 1 after A is passed into it
+}
+
+TEST_CASE("LDd Instruction", "[LDd], A") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = LD_HLd_A; // load A into memory location HL and increment HL
+    cpu.A = 0x69;
+    cpu.HL = 0x1010;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[LD_HLd_A], opcode, memory);
+    REQUIRE(memory[0x1010] == 0x69);
+    REQUIRE(cpu.HL == ((0x1010 - 1) & 0xFFFF)); // check if the HL register pair has incresaed by 1 after A is passed into it
+}
+
+TEST_CASE("LD (HL), d8 Instruction", "[LD (HL), d8]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = LD_HLmem_d8; // LD (HL), d8
+    memory[cpu.PC+1] = 0x69;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[LD_HLmem_d8], opcode, memory);
+    REQUIRE(memory[cpu.HL] == 0x69);
+}
+
+TEST_CASE("LD (a16), SP Instruction", "[LD (a16), SP]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = LD_a16mem_SP;
+    memory[cpu.PC+1] = 0x69;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[LD_a16mem_SP], opcode, memory);
+    REQUIRE(memory[0x69] == (cpu.SP & 0xFF));
+}
+
+TEST_CASE("PUSH BC Instruction", "[PUSH BC]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = PUSH_BC;
+    cpu.BC = 0xB0C0;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[PUSH_BC], opcode, memory);
+    REQUIRE(memory[cpu.SP] == 0xC0);
+    REQUIRE(memory[cpu.SP+1] == 0xB0); // higher byte is B so would come after C
+}
+
 TEST_CASE("ADC A, B Instruction", "[ADC]") {
     Mem memory;
     Cpu cpu;
@@ -127,7 +192,7 @@ TEST_CASE("ADC A, B Instruction", "[ADC]") {
     memory[cpu.PC] = ADC_A_B; // ADC A, B
     cpu.A = 0x90;
     cpu.B = 0x80;
-    cpu.F = 0b00010000; // Set carry flag to 1 for testing ADC
+    cpu.F = 0b0001'0000; // Set carry flag to 1 for testing ADC
     Byte expectedResult = static_cast<Byte>(0x90 + 0x80 + 1); // 0x81
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[ADC_A_B], opcode, memory);
@@ -143,12 +208,12 @@ TEST_CASE("SBC A, B Instruction", "[SBC]") {
     memory[cpu.PC] = SBC_A_B; // SBC A, B
     cpu.A = 0x90;
     cpu.B = 0x80;
-    cpu.F = 0b00010000; // Set carry flag to 1 for testing SBC
+    cpu.F = 0b0001'0000; // Set carry flag to 1 for testing SBC
     Byte expectedResult = static_cast<Byte>(0x90 - 0x80 - 1); // 0x0F
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[SBC_A_B], opcode, memory);
     REQUIRE(cpu.A == expectedResult);
-    REQUIRE(cpu.F == 0b01100000); // Check that carry flag is set
+    REQUIRE(cpu.F == 0b0110'0000); // Check that carry flag is set
 }
 
 TEST_CASE("DAA Instruction", "[DAA]") {
@@ -158,14 +223,14 @@ TEST_CASE("DAA Instruction", "[DAA]") {
 
     memory[cpu.PC] = DAA; // DAA
     cpu.A = 0x45; // Example value that would require adjustment
-    cpu.F = 0b00100000; // Clear flags for testing DAA
+    cpu.F = 0b0010'0000; // Clear flags for testing DAA
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[DAA], opcode, memory);
     REQUIRE(cpu.A == 0x4B); // After DAA, A should be adjusted to a valid BCD representation (in this case, it remains the same)
 
     memory[cpu.PC] = DAA; // DAA
     cpu.A = 0x9A; // Example value that would require adjustment
-    cpu.F = 0b00010000; // Set carry flag to 1 for testing DAA
+    cpu.F = 0b0001'0000; // Set carry flag to 1 for testing DAA
     opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[DAA], opcode, memory);
     REQUIRE(cpu.A == 0xFA);
@@ -177,10 +242,10 @@ TEST_CASE("SCF Instruction", "[SCF]") {
     cpu.reset(memory);
 
     memory[cpu.PC] = SCF; // SCF
-    cpu.F = 0b11000000; // Clear all flags for testing SCF
+    cpu.F = 0b1100'0000; // Clear all flags for testing SCF
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[SCF], opcode, memory);
-    REQUIRE(cpu.F == 0b10010000); // After SCF, C flag should be set, N and H flags should be reset, Z flag should be unaffected
+    REQUIRE(cpu.F == 0b1001'0000); // After SCF, C flag should be set, N and H flags should be reset, Z flag should be unaffected
 }
 
 TEST_CASE("CCF Instruction", "[CCF]") {
@@ -189,16 +254,16 @@ TEST_CASE("CCF Instruction", "[CCF]") {
     cpu.reset(memory);
 
     memory[cpu.PC] = CCF; // CCF
-    cpu.F = 0b10010000; // Set C flag to 1 for testing CCF
+    cpu.F = 0b1001'0000; // Set C flag to 1 for testing CCF
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[CCF], opcode, memory);
-    REQUIRE(cpu.F == 0b10000000);
+    REQUIRE(cpu.F == 0b1000'0000);
 
     memory[cpu.PC] = CCF; // CCF
-    cpu.F = 0b00000000; // Set C flag to 0 for testing CCF
+    cpu.F = 0b0000'0000; // Set C flag to 0 for testing CCF
     opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[CCF], opcode, memory);
-    REQUIRE(cpu.F == 0b00010000);
+    REQUIRE(cpu.F == 0b0001'0000);
 }
 
 TEST_CASE("CPL Instruction", "[CPL]") {
@@ -207,12 +272,12 @@ TEST_CASE("CPL Instruction", "[CPL]") {
     cpu.reset(memory);
 
     memory[cpu.PC] = CPL; // CPL
-    cpu.A = 0b10101010; // Example value for testing CPL
-    cpu.F = 0b00000000; // Clear flags for testing CPL
+    cpu.A = 0b1010'1010; // Example value for testing CPL
+    cpu.F = 0b0000'0000; // Clear flags for testing CPL
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[CPL], opcode, memory);
-    REQUIRE(cpu.A == 0b01010101); // After CPL, A should be bitwise complemented
-    REQUIRE(cpu.F == 0b01100000); // After CPL, N and H flags should be set, C flag should be reset, Z flag should be unaffected
+    REQUIRE(cpu.A == 0b0101'0101); // After CPL, A should be bitwise complemented
+    REQUIRE(cpu.F == 0b0110'0000); // After CPL, N and H flags should be set, C flag should be reset, Z flag should be unaffected
 }
 
 TEST_CASE("POP BC Instruction", "[POP BC]") {
@@ -245,6 +310,160 @@ TEST_CASE("RET Instruction", "[RET]") {
     REQUIRE(cpu.SP == 0x0000); // After RET, SP should be incremented by 2 (from 0xFFFE to 0x0000)
 }
 
-// need to test the jump/calls to get the different opcycles
+TEST_CASE("JP NZ a16 Instruction", "[JP NZ a16]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = JP_NZ_a16; // RET
+    memory[cpu.PC+1] = 0x42;
+    memory[cpu.PC+2] = 0x24; // a16 == 0x2442
+    cpu.F = 0b0001'0000; // Z flag is 0;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[JP_NZ_a16], opcode, memory);
+    REQUIRE(cpu.PC == 0x2442);
+}
+
+TEST_CASE("JR NZ s8 Instruction", "[JR NZ s8]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = JR_NZ_s8; // RET
+    memory[cpu.PC+1] = 0x42; // s8 = 42
+    cpu.F = 0b0001'0000; // Z flag is 0;
+    Word endLocation = (0x42 + cpu.PC + 2); // +2 for opcode + operand
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[JR_NZ_s8], opcode, memory);
+    REQUIRE(cpu.PC == endLocation);
+}
+
+TEST_CASE("CALL NC, a16 C=0 Instruction", "[CALL NC, a16]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = CALL_NC_a16;
+    memory[cpu.PC+1] = 0x50;
+    memory[cpu.PC+2] = 0xC2; // a16 == 0xC250
+    cpu.F = 0b0000'0000; // C flag is 0;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[CALL_NC_a16], opcode, memory);
+    REQUIRE(cpu.SP == 0xFFFC);
+    REQUIRE(cpu.PC == 0xC250);
+    REQUIRE(memory[cpu.SP+1] == 0x01);
+    REQUIRE(memory[cpu.SP] == 0x03);
+}
+
+TEST_CASE("CALL NC, a16 C=1 Instruction", "[CALL NC, a16]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = CALL_NC_a16;
+    memory[cpu.PC+1] = 0x50;
+    memory[cpu.PC+2] = 0xC2; // a16 == 0xC250
+    cpu.F = 0b0001'0000; // C flag is 1;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[CALL_NC_a16], opcode, memory);
+    REQUIRE(cpu.SP == 0xFFFE);
+    REQUIRE(cpu.PC == 0x0103);
+}
+
+TEST_CASE("CALL C, a16 C=0 Instruction", "[CALL C, a16]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = CALL_C_a16;
+    memory[cpu.PC+1] = 0x50;
+    memory[cpu.PC+2] = 0xC2; // a16 == 0xC250
+    cpu.F = 0b0000'0000; // C flag is 0;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[CALL_C_a16], opcode, memory);
+    REQUIRE(cpu.SP == 0xFFFE);
+    REQUIRE(cpu.PC == 0x0103);
+}
+
+TEST_CASE("CALL C, a16 C=1 Instruction", "[CALL C, a16]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = CALL_C_a16;
+    memory[cpu.PC+1] = 0x50;
+    memory[cpu.PC+2] = 0xC2; // a16 == 0xC250
+    cpu.F = 0b0001'0000; // C flag is 0;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[CALL_C_a16], opcode, memory);
+    REQUIRE(cpu.SP == 0xFFFC);
+    REQUIRE(cpu.PC == 0xC250);
+    REQUIRE(memory[cpu.SP+1] == 0x01);
+    REQUIRE(memory[cpu.SP] == 0x03);
+}
+
+TEST_CASE("CALL NZ, a16 Z=1 Instruction", "[CALL NZ, a16]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = CALL_NZ_a16;
+    memory[cpu.PC+1] = 0x50;
+    memory[cpu.PC+2] = 0xC2; // a16 == 0xC250
+    cpu.F = 0b1000'0000; // Z flag is 1;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[CALL_NZ_a16], opcode, memory);
+    REQUIRE(cpu.SP == 0xFFFE);
+    REQUIRE(cpu.PC == 0x103); // PC will just be incremented, since no Call was made
+}
+
+TEST_CASE("CALL NZ, a16 Z=0 Instruction", "[CALL NZ, a16]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = CALL_NZ_a16;
+    memory[cpu.PC+1] = 0x50;
+    memory[cpu.PC+2] = 0xC2; // a16 == 0xC250
+    cpu.F = 0b0000'0000; // Z flag is 1;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[CALL_NZ_a16], opcode, memory);
+    REQUIRE(cpu.SP == 0xFFFC);
+    REQUIRE(cpu.PC == 0xC250);
+    REQUIRE(memory[cpu.SP+1] == 0x01);
+    REQUIRE(memory[cpu.SP] == 0x03);
+}
+
+TEST_CASE("CALL Z, a16 Z=1 Instruction", "[CALL Z, a16]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = CALL_Z_a16;
+    memory[cpu.PC+1] = 0x50;
+    memory[cpu.PC+2] = 0xC2; // a16 == 0xC250
+    cpu.F = 0b1000'0000; // Z flag is 1;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[CALL_Z_a16], opcode, memory);
+    REQUIRE(cpu.SP == 0xFFFC);
+    REQUIRE(cpu.PC == 0xC250);
+    REQUIRE(memory[cpu.SP+1] == 0x01);
+    REQUIRE(memory[cpu.SP] == 0x03);
+}
+
+TEST_CASE("CALL Z, a16 Z=0 Instruction", "[CALL Z, a16]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = CALL_Z_a16;
+    // memory[cpu.PC+1] = 0x50;
+    // memory[cpu.PC+2] = 0xC2; // a16 == 0xC250
+    cpu.F = 0b0000'0000; // Z flag is 1;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[CALL_Z_a16], opcode, memory);
+    // REQUIRE(cpu.SP == 0xFFFE);
+    REQUIRE(cpu.PC == 0x103); // PC will just be incremented, since no Call was made
+}
 
 //
