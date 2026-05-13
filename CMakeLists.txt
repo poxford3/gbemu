@@ -27,6 +27,10 @@ add_executable(tests
     src/cpu.cpp)
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 
+# nlohmann json package
+find_package(nlohmann_json REQUIRED)
+
+
 # Source files
 file(GLOB SRC_FILES src/*.cpp)
 
@@ -41,5 +45,6 @@ target_link_libraries(gbemu
     SFML::Window
     SFML::System
     ${NFD_LIBRARY}
+    nlohmann_json::nlohmann_json
     "-framework AppKit"
 )

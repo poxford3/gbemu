@@ -15,6 +15,7 @@ struct Gameboy {
         void tick();
         bool checksum();
         void printMemory();
+        void testWithJson(std::string path);
 
     private:
         Mem memory;

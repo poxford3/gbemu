@@ -92,6 +92,34 @@ TEST_CASE("RLCA Instruction", "[RLCA]") {
     REQUIRE(cpu.F == 0x10);
 }
 
+TEST_CASE("LD HL, d16", "[LD HL, d16]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = LD_HL_d16; // LD A,(BC)
+    cpu.HL = 0x1010;
+    memory[cpu.PC + 1] = 0x42;
+    memory[cpu.PC + 2] = 0x24;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[LD_HL_d16], opcode, memory);
+    REQUIRE(cpu.HL == 0x2442);
+}
+
+TEST_CASE("LD BC, d16", "[LD BC, d16]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = LD_BC_d16; // LD A,(BC)
+    cpu.BC = 0x1010;
+    memory[cpu.PC + 1] = 0x42;
+    memory[cpu.PC + 2] = 0x24;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[LD_BC_d16], opcode, memory);
+    REQUIRE(cpu.BC == 0x2442);
+}
+
 TEST_CASE("LD A,(BC) Instruction", "[LD A,(BC)]") {
     Mem memory;
     Cpu cpu;
@@ -169,6 +197,30 @@ TEST_CASE("LD (a16), SP Instruction", "[LD (a16), SP]") {
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[LD_a16mem_SP], opcode, memory);
     REQUIRE(memory[0x69] == (cpu.SP & 0xFF));
+}
+
+TEST_CASE("INC B Instruction", "[INC B]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = INC_B;
+    cpu.B = 0xBF;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[INC_B], opcode, memory);
+    REQUIRE(cpu.B == 0xC0);
+}
+
+TEST_CASE("DEC B Instruction", "[DEC B]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = DEC_B;
+    cpu.B = 0xC0;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[DEC_B], opcode, memory);
+    REQUIRE(cpu.B == 0xBF);
 }
 
 TEST_CASE("PUSH BC Instruction", "[PUSH BC]") {
@@ -286,13 +338,28 @@ TEST_CASE("POP BC Instruction", "[POP BC]") {
     cpu.reset(memory);
 
     memory[cpu.PC] = POP_BC; // POP BC
-    cpu.SP = 0xFFFE; // Set stack pointer to top of stack
+    // cpu.SP = 0xFFFE; // Set stack pointer to top of stack
     memory[cpu.SP] = 0x34; // Set value at SP to 0x34 (C)
     memory[cpu.SP + 1] = 0x12; // Set value at SP+1 to 0x12 (B)
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[POP_BC], opcode, memory);
     REQUIRE(cpu.BC == 0x1234); // After POP BC, BC should be loaded with value from stack (0x1234)
     REQUIRE(cpu.SP == 0x0000); // After POP BC, SP should be incremented by 2 (from 0xFFFE to 0x0000)
+}
+
+TEST_CASE("PUSH HL Instruction", "[PUSH HL]") {
+    Mem memory;
+    Cpu cpu;
+    cpu.reset(memory);
+
+    memory[cpu.PC] = PUSH_HL;
+    // cpu.SP = 0xFFFE; // Set stack pointer to top of stack
+    cpu.HL = 0x1234;
+    Byte opcode = cpu.loadByte(memory);
+    cpu.executeInstructions(opcycles[PUSH_HL], opcode, memory);
+    REQUIRE(cpu.SP == 0xFFFC);
+    REQUIRE(memory[cpu.SP] == 0x34);
+    REQUIRE(memory[cpu.SP+1] == 0x12);
 }
 
 TEST_CASE("RET Instruction", "[RET]") {
@@ -457,13 +524,29 @@ TEST_CASE("CALL Z, a16 Z=0 Instruction", "[CALL Z, a16]") {
     cpu.reset(memory);
 
     memory[cpu.PC] = CALL_Z_a16;
-    // memory[cpu.PC+1] = 0x50;
-    // memory[cpu.PC+2] = 0xC2; // a16 == 0xC250
     cpu.F = 0b0000'0000; // Z flag is 1;
     Byte opcode = cpu.loadByte(memory);
     cpu.executeInstructions(opcycles[CALL_Z_a16], opcode, memory);
-    // REQUIRE(cpu.SP == 0xFFFE);
+    REQUIRE(cpu.SP == 0xFFFE);
     REQUIRE(cpu.PC == 0x103); // PC will just be incremented, since no Call was made
 }
+
+// this test needs to go through the extended opcodes
+// TEST_CASE("SLA C Instruction", "[SLA_C]") {
+//     Mem memory;
+//     Cpu cpu;
+//     cpu.reset(memory);
+
+//     memory[cpu.PC] = SLA_C;
+//     // cpu.C = 0b1000'0000;
+//     cpu.C = 0x80;
+//     cpu.F = 0x00;
+//     Byte opcode = cpu.loadByte(memory);
+//     std::cout << std::hex << (int)cpu.C << std::endl;
+//     cpu.executeInstructions(opcycles[SLA_C], opcode, memory);
+//     std::cout << std::hex << (int)cpu.C << std::endl;
+//     REQUIRE(cpu.C == 0x00);
+//     REQUIRE(cpu.F == 0x90); // PC will just be incremented, since no Call was made
+// }
 
 //

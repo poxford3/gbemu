@@ -148,7 +148,9 @@ struct Cpu {
     void updateFlags(Byte result, bool isSubtraction, bool halfCarry, bool carry);
     Byte readByte(Mem &memory, Word address);
     Word incWord(Word value); // increment a 16-bit word, wrapping around at 0xFFFF
+    Byte incByte(Byte value); // increase a Byte's value and update the flags around it
     Word decWord(Word value); // decrement a 16-bit word, wrapping around at 0x0000
+    Byte decByte(Byte value); // decrease a Byte's value and update the flags around it
     void jp(Word address);
     void jr(int8_t offset);
     void call(Word address, Mem &memory);
@@ -160,6 +162,7 @@ struct Cpu {
     // load operations
     Word loadWord(Mem &memory);
     Byte loadByte(Mem &memory);
+    int8_t loadInt(Mem &memory);
     void loadRegToReg(Byte &dest, Byte &src);
     void loadRegToReg(Word &dest, Word &src);
     void loadRegToMemory(Mem &memory, Word address, Byte &reg);
@@ -184,7 +187,7 @@ struct Cpu {
     // math operations
     void addRegToReg(Byte &dest, Byte &src);
     void addRegToReg(Word &dest, Word &src);
-    Word addByteToWord(Word &dest, Byte src);
+    Word addByteToWord(Word &dest, int8_t src);
     void subRegToReg(Byte &dest, Byte &src);
     void ADC(Byte src);
     void SBC(Byte src);
@@ -197,6 +200,7 @@ struct Cpu {
     void executeInstructions(uint cycles, Byte opcode, Mem &memory);
     void executeExtendedOpcode(uint &cycles, Mem &memory);
     void showAllRegisterValues();
+    void TEST_showAllRegValuesDecimal();
 
 };
 

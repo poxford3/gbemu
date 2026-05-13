@@ -32,7 +32,7 @@ void Cpu::reset(Mem &memory) {
     memory[TIMA] = 0x0;
     memory[TMA] = 0x0;
     memory[TAC] = 0xF8;
-    memory[IF] = 0xE1;
+    // memory[IF] = 0xE1;
     memory[NR10] = 0x80;
     memory[NR11] = 0xBF;
     memory[NR12] = 0xF3;
@@ -62,25 +62,25 @@ void Cpu::reset(Mem &memory) {
     memory[LYC] = 0x0;
     memory[DMA] = 0xFF;
     memory[BGP] = 0xFC;
-    // memory[OBP0] = 0x??7
-    // memory[OBP1] = 0x??7
+    // memory[OBP0] = 0x??7;
+    // memory[OBP1] = 0x??7;
     memory[WY] = 0x0;
     memory[WX] = 0x0;
-    // memory[KEY0] = 0x—
-    // memory[KEY1] = 0x—
-    // memory[VBK] = 0x—
-    // memory[BANK] = 0x—
-    // memory[HDMA1] = 0x—
-    // memory[HDMA2] = 0x—
-    // memory[HDMA3] = 0x—
-    // memory[HDMA4] = 0x—
-    // memory[HDMA5] = 0x—
-    // memory[RP] = 0x—
-    // memory[BCPS] = 0x—
-    // memory[BCPD] = 0x—
-    // memory[OCPS] = 0x—
-    // memory[OCPD] = 0x—
-    // memory[SVBK] = 0x—
+    // memory[KEY0] = 0x—;
+    // memory[KEY1] = 0x—;
+    // memory[VBK] = 0x—;
+    // memory[BANK] = 0x—;
+    // memory[HDMA1] = 0x—;
+    // memory[HDMA2] = 0x—;
+    // memory[HDMA3] = 0x—;
+    // memory[HDMA4] = 0x—;
+    // memory[HDMA5] = 0x—;
+    // memory[RP] = 0x—;
+    // memory[BCPS] = 0x—;
+    // memory[BCPD] = 0x—;
+    // memory[OCPS] = 0x—;
+    // memory[OCPD] = 0x—;
+    // memory[SVBK] = 0x—;
     memory[IE] = 0x0;
 }
 
@@ -90,10 +90,11 @@ void Cpu::loadProgram(std::vector<Byte> program, uint numBytes, Mem &memory) {
         memory[i] = program[i];
     }
 
-    printf("ROM header: %02X %02X %02X %02X\n", 
-    memory[0x0100], memory[0x0101], memory[0x0102], memory[0x0103]);
-    printf("MBC type: %02X\n", memory[0x0147]);
-    printf("ROM size: %02X\n", memory[0x0148]);
+    // printf("ROM header: %02X %02X %02X %02X %02X %02X %02X %02X\n", 
+    // memory[0x0100], memory[0x0101], memory[0x0102], memory[0x0103],
+    // memory[0x0104], memory[0x0105], memory[0x0106], memory[0x0107]);
+    // printf("MBC type: %02X\n", memory[0x0147]);
+    // printf("ROM size: %02X\n", memory[0x0148]);
 };
 
 void Cpu::runProgram(Mem &memory) {
@@ -133,7 +134,25 @@ void Cpu::showAllRegisterValues() {
     std::cout << "PC: 0x" << std::hex << PC << std::dec << std::endl;
 }
 
+void Cpu::TEST_showAllRegValuesDecimal() {
+    Byte flags = F;
+    std::cout << "Flags: Z=" << ((flags & 0x80) ? "1" : "0") << " N=" << ((flags & 0x40) ? "1" : "0") << " H=" << ((flags & 0x20) ? "1" : "0") << " C=" << ((flags & 0x10) ? "1" : "0") << std::endl;
+    std::cout << "(A: " << static_cast<int>(A) 
+              << ", F: " << static_cast<int>(F) << ")" << std::endl;
+    std::cout << "(B: " << static_cast<int>(B) 
+            << ", C: " << static_cast<int>(C) << ")" << std::endl;
+    std::cout << "(D: " << static_cast<int>(D) 
+              << ", E: " << static_cast<int>(E) << ")" << std::endl;
+    std::cout << "(H: " << static_cast<int>(H) 
+              << ", L: " << static_cast<int>(L) << ")" << std::endl;
+    std::cout << "SP: " << SP << std::endl;
+    std::cout << "PC: " << PC << std::endl;
+}
+
 Byte Cpu::readByte(Mem &memory, Word address) {
+    // if (address >= 0x4000 && address <= 0x7FFF) {
+    //     return ROM[(currentROMBank * 0x4000) + (address - 0x4000)];
+    // }
     Byte value = memory[address];
     return value;
 }
@@ -142,8 +161,24 @@ Word Cpu::incWord(Word value) {
     return (value + 1) & 0xFFFF; // Increment and wrap around at 0xFFFF
 }
 
+Byte Cpu::incByte(Byte value) {
+    bool currentCFlag = (F >> 4) & 1;
+    bool halfCarry = (value & 0x0F) == 0x0F;
+    value++;
+    updateFlags(value, 0, halfCarry, currentCFlag);
+    return value;
+}
+
 Word Cpu::decWord(Word value) {
     return (value - 1) & 0xFFFF; // Decrement and wrap around at 0x0000
+}
+
+Byte Cpu::decByte(Byte value) {
+    bool currentCFlag = (F >> 4) & 1;
+    bool halfCarry = (value & 0x0F) == 0;
+    value--;
+    updateFlags(value, 1, halfCarry, currentCFlag);
+    return value;
 }
 
 void Cpu::jp(Word address) {
@@ -168,29 +203,25 @@ void Cpu::handleInterrupt(Mem &memory) {
     if (!IME) return;
 
     Byte pending = memory[IE] & memory[IF];
-
     if (pending == 0) return;
 
-    // get highest priority interrupt (bit 0 = highest)
     for (int i = 0; i < 5; i++) {
         if (pending & (1 << i)) {
             IME = false;
-            memory[IF] &= ~(1 << i); // clear IF
-            pushRegToStack(PC, memory); // save PC
-        }
+            memory[IF] &= ~(1 << i);
+            pushRegToStack(PC, memory);
 
-        switch (i) {
-            case 0: PC = 0x0040; // VBlank
-            case 1: PC = 0x0048; // LCD
-            case 2: PC = 0x0050; // Timer
-            case 3: PC = 0x0058; // Serial
-            case 4: PC = 0x0060; // Joypad
+            switch (i) {
+                case 0: PC = 0x0040; break;
+                case 1: PC = 0x0048; break;
+                case 2: PC = 0x0050; break;
+                case 3: PC = 0x0058; break;
+                case 4: PC = 0x0060; break;
+            }
+            return;
         }
-        // cycles -= 20; // would need to implement this once clock is done
-        return;
     }
-
-
+    // cycles -= 20; // implemented once the clock is done
 }
 
 void Cpu::_RET(Mem &memory) {
@@ -226,6 +257,12 @@ Byte Cpu::loadByte(Mem &memory) {
     return value;
 }
 
+int8_t Cpu::loadInt(Mem &memory) {
+    int8_t value = memory[PC];
+    PC++;
+    return value;
+}
+
 void Cpu::loadRegToReg(Byte &dest, Byte &src) {
     dest = src;
 }
@@ -238,13 +275,20 @@ void Cpu::loadRegToMemory(Mem &memory, Word address, Byte &reg) {
     if (address == 0xFF02) {
         printf("SC write: %02X SB: %02X PC: %04X\n", reg, memory[0xFF01], PC);
     }
+    // if (address >= 0x2000 && address <= 0x3FFF) {
+    //     // MBC1 ROM bank number (lower 5 bits)
+    //     Byte bank = value & 0x1F;
+    //     if (bank == 0) bank = 1; // bank 0 is not selectable here
+    //     currentROMBank = bank;
+    //     return;
+    // }
     memory[address] = reg;
-    if (memory[0xFF02] == 0x81) {
-        char c = memory[0xFF01];
-        printf("pp %c", c);
+    // if (memory[0xFF02] == 0x81) {
+    //     char c = memory[0xFF01];
+    //     printf("pp %c", c);
 
-        memory[0xFF02] = 0x00;
-    }
+    //     memory[0xFF02] = 0x00;
+    // }
 }
 
 void Cpu::loadRegFromMemory(Mem &memory, Word address, Byte &reg) {
@@ -371,17 +415,27 @@ void Cpu::addRegToReg(Byte &dest, Byte &src) {
 }
 
 void Cpu::addRegToReg(Word &dest, Word &src) {
-    bool flag_h = ((dest & 0x0F) + (src & 0x0F)) > 0x0F; // Set H flag if there is a carry from bit 3
+    bool flag_h = ((dest & 0x0FFF) + (src & 0x0FFF)) > 0x0FFF; // carry from bit 11
     bool flag_c = (dest + src) > 0xFFFF; // Set C flag if there is a carry from bit 15
     dest += src;
-    updateFlags(dest, false, flag_h, flag_c);
+    bool currentZFlag = (F >> 7) & 1;
+    Byte resultZ = currentZFlag ? 0x00: 0x01;
+    updateFlags(resultZ, false, flag_h, flag_c);
 }
 
-Word Cpu::addByteToWord(Word &dest, Byte src) {
-    bool flag_h = ((dest & 0x0F) + (src & 0x0F)) > 0x0F; // Set H flag if there is a carry from bit 3
-    bool flag_c = (dest + src) > 0xFF; // Set C flag if there is a carry from bit 7
-    Word result = dest + src;
-    updateFlags(result, false, flag_h, flag_c);
+// Word Cpu::addByteToWord(Word &dest, int8_t src) {
+//     bool flag_h = ((dest & 0x0F) + (src & 0x0F)) > 0x0F; // Set H flag if there is a carry from bit 3
+//     bool flag_c = (dest + src) > 0xFF; // Set C flag if there is a carry from bit 7
+//     Word result = dest + src;
+//     updateFlags(1, false, flag_h, flag_c); // z flag always 0 here (pass anything but 0)
+//     return result;
+// }
+Word Cpu::addByteToWord(Word &dest, int8_t src) {
+    uint8_t usrc = (uint8_t)src; // treat as unsigned for flag checks
+    bool flag_h = ((dest & 0x0F) + (usrc & 0x0F)) > 0x0F;
+    bool flag_c = ((dest & 0xFF) + usrc) > 0xFF;
+    Word result = dest + src; // keep signed for correct result
+    updateFlags(1, false, flag_h, flag_c);
     return result;
 }
 
@@ -393,7 +447,6 @@ void Cpu::subRegToReg(Byte &dest, Byte &src) {
 }
 
 
-// these need good testing
 void Cpu::ADC(Byte src) {
     Word result = A + src + ((F >> 4) & 1); // Calculate A + src + carry
     bool flag_z = (result & 0xFF) == 0; // Set Z flag if result is zero
@@ -469,15 +522,15 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
         }
         case STOP: {
             // TODO, will be clock related
-            std::cout << "Executed STOP" << std::endl;
+            // std::cout << "Executed STOP" << std::endl;
             cycles -= opcycles[opcode];
             break;
         }
         case JR_NZ_s8: {
             bool z_flag = (F >> 7) & 1;
-            int8_t a8 = loadByte(memory);
+            int8_t s8 = loadInt(memory);
             if (z_flag == 0) {
-                jr(a8);
+                jr(s8);
                 cycles -= opcycles[opcode];
             } else {
                 // if condition not met, number of cycles required goes to 2
@@ -487,9 +540,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
         }
         case JR_NC_s8: {
             bool c_flag = (F >> 4) & 1;
-            int8_t a8 = loadByte(memory);
+            int8_t s8 = loadInt(memory);
             if (c_flag == 0) {
-                jr(a8);
+                jr(s8);
                 cycles -= opcycles[opcode];
             } else {
                 // if condition not met, number of cycles required goes to 2
@@ -647,6 +700,7 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
         }
         case POP_AF: {
             popStackToReg(AF, memory);
+            AF &= 0xFFF0; // mask lower nibble of F
             cycles -= opcycles[opcode];
             break;
         }
@@ -819,24 +873,24 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
 
         // x4 opcodes
         case INC_B: {
-            B = incWord(B);
+            B = incByte(B);
             cycles -= opcycles[opcode];
             break;
         }
         case INC_D: {
-            D = incWord(D);
+            D = incByte(D);
             cycles -= opcycles[opcode];
             break;
         }
         case INC_H: {
-            H = incWord(H);
+            H = incByte(H);
             cycles -= opcycles[opcode];
             break;
         }
         case INC_HLmem: {
             // load byte from memory, increment it, then store it back
             Byte value = readByte(memory, HL);
-            value = incWord(value);
+            value = incByte(value);
             loadRegToMemory(memory, HL, value);
             cycles -= opcycles[opcode];
             break;
@@ -907,24 +961,24 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
 
         // x5 opcodes
         case DEC_B: {
-            B = decWord(B);
+            B = decByte(B);
             cycles -= opcycles[opcode];
             break;
         }
         case DEC_D: {
-            D = decWord(D);
+            D = decByte(D);
             cycles -= opcycles[opcode];
             break;
         }
         case DEC_H: {
-            H = decWord(H);
+            H = decByte(H);
             cycles -= opcycles[opcode];
             break;
         }
         case DEC_HLmem: {
             // load byte from memory, decrement it, then store it back
             Byte value = readByte(memory, HL);
-            value = decWord(value);
+            value = decByte(value);
             loadRegToMemory(memory, HL, value);
             cycles -= opcycles[opcode];
             break;
@@ -1180,16 +1234,16 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case JR_s8: {
-            int8_t a8 = loadByte(memory);
-            jr(a8);
+            int8_t s8 = loadInt(memory);
+            jr(s8);
             cycles -= opcycles[opcode];
             break;
         }
         case JR_Z_s8: {
             bool z_flag = (F >> 7) & 1;
-            int8_t a8 = loadByte(memory);
+            int8_t s8 = loadInt(memory);
             if (z_flag == 1) {
-                jr(a8);
+                jr(s8);
                 cycles -= opcycles[opcode];
             } else {
                 // if condition not met, number of cycles required goes to 2
@@ -1199,9 +1253,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
         }
         case JR_C_s8: {
             bool c_flag = (F >> 4) & 1;
-            int8_t a8 = loadByte(memory);
+            int8_t s8 = loadInt(memory);
             if (c_flag == 1) {
-                jr(a8);
+                jr(s8);
                 cycles -= opcycles[opcode];
             } else {
                 // if condition not met, number of cycles required goes to 2
@@ -1270,15 +1324,15 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case ADD_SP_s8: {
-            Byte s8 = loadByte(memory);
-            addByteToWord(SP, s8); // add signed 8-bit value to SP
+            int8_t s8 = loadInt(memory);
+            SP = addByteToWord(SP, s8); // add signed 8-bit value to SP
             cycles -= opcycles[opcode];
             break;
         }
         case LD_HL_SP_s8: {
-            Byte s8 = loadByte(memory);
+            int8_t s8 = loadInt(memory);
             Word SPadds8 = addByteToWord(SP, s8); // calculate SP + signed 8-bit value for flag updates
-            HL = SP + SPadds8; // add signed 8-bit value to SP and store in HL
+            loadRegToReg(HL, SPadds8);
             cycles -= opcycles[opcode];
             break;
         }
@@ -1534,22 +1588,22 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
 
         // xC opcodes
         case INC_C: {
-            C = incWord(C);
+            C = incByte(C);
             cycles -= opcycles[opcode];
             break;
         }
         case INC_E: {
-            E = incWord(E);
+            E = incByte(E);
             cycles -= opcycles[opcode];
             break;
         }
         case INC_L: {
-            L = incWord(L);
+            L = incByte(L);
             cycles -= opcycles[opcode];
             break;
         }
         case INC_A: {
-            A = incWord(A);
+            A = incByte(A);
             cycles -= opcycles[opcode];
             break;
         }
@@ -1620,22 +1674,22 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
 
         // xD opcodes
         case DEC_C: {
-            C = decWord(C);
+            C = decByte(C);
             cycles -= opcycles[opcode];
             break;
         }
         case DEC_E: {
-            E = decWord(E);
+            E = decByte(E);
             cycles -= opcycles[opcode];
             break;
         }
         case DEC_L: {
-            L = decWord(L);
+            L = decByte(L);
             cycles -= opcycles[opcode];
             break;
         }
         case DEC_A: {
-            A = decWord(A);
+            A = decByte(A);
             cycles -= opcycles[opcode];
             break;
         }
@@ -1791,10 +1845,11 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case CPL: {
-            A = ~A;
+            A = ~A; // compliment(A)
             Byte currentZFlag = (F >> 7) & 1; // Store current Z flag value
+            bool currentCFlag = (F >> 4) & 1; // Store current C flag value
             Byte resultZ = currentZFlag ? 0x00: 0x01;
-            updateFlags(resultZ, true, true, false); // Set N and H flags, reset C flag, Z flag is unaffected
+            updateFlags(resultZ, true, true, currentCFlag); // Toggle C flag, reset N and H flags, Z flag is unaffected
             cycles -= opcycles[opcode];
             break;
         }
@@ -1879,6 +1934,7 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
         case 0xFC:
         case 0xFD: {
             // todo, implement a crash system for invalid opcodes
+            std::cout << "illegal opcode" << std::endl;
             break;
         }
         default:
@@ -3205,7 +3261,6 @@ void Cpu::executeExtendedOpcode(uint &cycles, Mem &memory) {
                 cycles -= opcyclesExtended[opcode];
                 break;
             }
-
 
             // TODO
             default:

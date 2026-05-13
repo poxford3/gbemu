@@ -5,7 +5,7 @@ enum Opcodes : Byte {
     
     // x0 opcodes
     NOP = 0x00, // No operation
-    STOP = 0x01, // stops clock and oscillator
+    STOP = 0x10, // stops clock and oscillator
     JR_NZ_s8 = 0x20, // Jump to relative address if Z flag is not set
     JR_NC_s8 = 0x30, // Jump to relative address if C flag is not set
     LD_B_B = 0x40, // Load B into B (essentially a NOP for B)
@@ -22,7 +22,7 @@ enum Opcodes : Byte {
     LD_A_a8mem = 0xF0, // Load (a8) memory into A
     
     // x1 opcodes
-    LD_BC_d16 = 0x10, // Load 16-bit immediate into BC
+    LD_BC_d16 = 0x01, // Load 16-bit immediate into BC
     LD_DE_d16 = 0x11, // Load 16-bit immediate into DE
     LD_HL_d16 = 0x21, // Load 16-bit immediate into HL
     LD_SP_d16 = 0x31, // Load 16-bit immediate into SP
