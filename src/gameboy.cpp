@@ -1,6 +1,8 @@
+#include <string>
 #include <fstream>
 #include "gameboy.hpp"
 #include "types.hpp"
+#include "opcodeNames.hpp"
 
 Gameboy::Gameboy() {
     start();
@@ -28,6 +30,8 @@ void Gameboy::stop() {
 
 void Gameboy::tick() {
     cpu.handleInterrupt(memory);
+    uint cycles = 100;
+    updateTimer(cycles);
     
     if (cpu.halted) {
         if (memory[cpu.IE] & memory[cpu.IF]) {
@@ -37,14 +41,44 @@ void Gameboy::tick() {
     }
     
     Byte opcode = cpu.loadByte(memory);
-    // std::cout << "opcode: " << std::hex << static_cast<int>(opcode) << std::dec << "\tPC: 0x" << std::hex << (cpu.PC) << std::dec << std::dec <<
+    // std::cout << "opcode: " << std::hex << static_cast<int>(opcode) << std::dec << "\tPC: 0x" << std::hex << (cpu.PC) << std::dec << 
     // "\tF: 0x" << std::hex << (int)(cpu.F) << std::dec <<
     // "\tDE: 0x" << std::hex << (cpu.DE) << std::dec <<
     // "\tHL: 0x" << std::hex << (cpu.HL) << std::dec <<
     // "\tA: 0x" << std::hex << int(cpu.A) << std::dec <<
     // "\tmem[c000]: 0x" << std::hex << (int)(memory[0xC000]) << std::dec << std::endl;
     // printf(", C000-4 %02X %02X %02X %02X %02X\n", memory[0xC000], memory[0xC001], memory[0xC002], memory[0xC003], memory[0xC004]);
-    cpu.executeInstructions(100, opcode, memory);
+    cpu.executeInstructions(cycles, opcode, memory);
+}
+
+void Gameboy::updateTimer(uint cycles) {
+    divCycles += cycles;
+    if (divCycles >= 256) {
+        divCycles -= 256;
+        memory[0xFF04]++;
+    }
+    
+    // check if timer is enabled (bit 2 of TAC)
+    if (!(memory[0xFF07] & 0x04)) return;
+    
+    // clock speed based on TAC bits 0-1
+    int threshold;
+    switch (memory[0xFF07] & 0x03) {
+        case 0: threshold = 1024; break; // 4096 Hz
+        case 1: threshold = 16;   break; // 262144 Hz
+        case 2: threshold = 64;   break; // 65536 Hz
+        case 3: threshold = 256;  break; // 16384 Hz
+    }
+    
+    timaCycles += cycles;
+    if (timaCycles >= threshold) {
+        timaCycles -= threshold;
+        memory[0xFF05]++;
+        if (memory[0xFF05] == 0) {            // overflow
+            memory[0xFF05] = memory[0xFF06];  // reload from TMA
+            memory[0xFF0F] |= 0x04;           // request timer interrupt
+        }
+    }
 }
 
 bool Gameboy::checksum() {
@@ -71,7 +105,7 @@ void Gameboy::testWithJson(std::string path) {
         json opcodeTestData = json::parse(f);
 
         int failCount = 0;
-        bool singleFile = true;
+        bool singleFile = false;
 
         for (int i = 0; i < opcodeTestData.size(); i++) {
             // std::cout << i << std::endl;
@@ -123,11 +157,15 @@ void Gameboy::testWithJson(std::string path) {
                     singleFile && std::cout << "error executing operation in mem, " << opcodeTestData[i]["name"] << std::endl;
                 }
                 // cpu.showAllRegisterValues();
-                cpu.TEST_showAllRegValuesDecimal();
+                // cpu.TEST_showAllRegValuesDecimal();
             } else {
                 // std::cout << "pass, op: " << opcodeTestData[i]["name"] << std::endl;
             }
         }
+        // std::string name = opcodeTestData[0]["name"];
+        // Byte opcodeNum = (Byte)std::stoi(name.substr(0, 2), nullptr, 16);
+        // std::string opcodePrint = opcodeNames[opcodeNum];
+        // std::cout << "finished testing :D, " << failCount << ", " << opcodePrint << " (" << name.substr(0, 2) << ")" << std::endl;
         std::cout << "finished testing :D, " << opcodeTestData[0]["name"] << ", " << failCount << std::endl;
     } else {
         std::cout << "error opening file" << std::endl;

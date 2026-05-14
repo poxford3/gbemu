@@ -192,13 +192,13 @@ struct Cpu {
     void ADC(Byte src);
     void SBC(Byte src);
     void CP(Byte src); // essentially A - src, but only affects flags, does not store result
-    void _DAA(); // Decimal Adjust Accumulator
+    void _DAA(Byte &A); // Decimal Adjust Accumulator
 
     void popStackToReg(Word &reg, Mem &memory);
     void pushRegToStack(Word reg, Mem &memory);
 
     void executeInstructions(uint cycles, Byte opcode, Mem &memory);
-    void executeExtendedOpcode(uint &cycles, Mem &memory);
+    void executeExtendedOpcode(uint &cycles, Byte opcode, Mem &memory);
     void showAllRegisterValues();
     void TEST_showAllRegValuesDecimal();
 
