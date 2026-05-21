@@ -23,7 +23,6 @@ void Cpu::reset(Mem &memory) {
     memory.init(); // Initialize memory to 0
 
     IME = false;
-    pendingIME = false;
 
     memory[P1] = 0xCF;
     memory[SB] = 0x0;
@@ -234,16 +233,11 @@ void Cpu::_RET(Mem &memory) {
 }
 
 void Cpu::_EI() {
-    // enable interrupts
-    // memory[IE] = 0x0001;
-    // pendingIME = true;
     IME = true;
 }
 
 void Cpu::_DI() {
-    // memory[IE] = 0x0000;
     IME = false;
-    // pendingIME = false;
 }
 
 
@@ -1096,6 +1090,7 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
         }
         case HALT: {
             halted = true;
+            paused = true;
             cycles -= opcycles[opcode];
             break;
         }
