@@ -45,7 +45,8 @@ void testAllOpcodesEver(Gameboy gb) {
 
 int main() {
 
-    std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/01-special.gb";
+    // std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/01-special.gb";
+    std::string path = "/Users/poxford3/Downloads/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb";
     FileHandler fileH(path);
     Gameboy gameboy (fileH.readFile());
     
@@ -54,10 +55,10 @@ int main() {
             gameboy.tick();
         }
     }
-            
+
     // Gameboy gameboy;
+    // gameboy.testWithJson("/Users/poxford3/Documents/coding/cpp/gbemu/assets/f8.json");
     // testAllOpcodesEver(gameboy);
-    // gameboy.testWithJson("/Users/poxford3/Documents/coding/cpp/gbemu/assets/v1/E2.json");
 
     // EmuWindow emuWindow;
     // emuWindow.run();

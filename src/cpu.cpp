@@ -32,7 +32,7 @@ void Cpu::reset(Mem &memory) {
     memory[TIMA] = 0x0;
     memory[TMA] = 0x0;
     memory[TAC] = 0xF8;
-    // memory[IF] = 0xE1;
+    memory[IF] = 0xE1;
     memory[NR10] = 0x80;
     memory[NR11] = 0xBF;
     memory[NR12] = 0xF3;
@@ -201,23 +201,26 @@ void Cpu::call(Word address, Mem &memory) {
 }
 
 void Cpu::handleInterrupt(Mem &memory) {
-    if (!IME) return;
+    if (!IME) return; // if the master interrupt says there are no interrupts, then we just move on
+
+    // printf("ie %20X, if %20X, pending %20X\n", memory[IE], memory[IF], memory[IE] & memory[IF]);
 
     Byte pending = memory[IE] & memory[IF];
     if (pending == 0) return;
 
     for (int i = 0; i < 5; i++) {
         if (pending & (1 << i)) {
+            printf("HOOWWWW\n");
             IME = false;
             memory[IF] &= ~(1 << i);
             pushRegToStack(PC, memory);
 
             switch (i) {
-                case 0: PC = 0x0040; break;
-                case 1: PC = 0x0048; break;
-                case 2: PC = 0x0050; break;
-                case 3: PC = 0x0058; break;
-                case 4: PC = 0x0060; break;
+                case 0: PC = 0x0040; break; // VBlank
+                case 1: PC = 0x0048; break; // LCD
+                case 2: PC = 0x0050; break; // Timer
+                case 3: PC = 0x0058; break; // Serial
+                case 4: PC = 0x0060; break; // Joypad
             }
             return;
         }
@@ -261,6 +264,7 @@ Byte Cpu::loadByte(Mem &memory) {
 
 int8_t Cpu::loadInt(Mem &memory) {
     int8_t value = memory[PC];
+    // printf("PC: %20X, IE: %20X\n", PC, memory[IE]);
     PC++;
     return value;
 }
@@ -418,7 +422,8 @@ void Cpu::addRegToReg(Byte &dest, Byte &src) {
 
 void Cpu::addRegToReg(Word &dest, Word &src) {
     bool flag_h = ((dest & 0x0FFF) + (src & 0x0FFF)) > 0x0FFF; // carry from bit 11
-    bool flag_c = (dest + src) > 0xFFFF; // Set C flag if there is a carry from bit 15
+    // case dest and src to uint to make sure they don't wrap around before checking carry
+    bool flag_c = ((uint)dest + (uint)src) > 0xFFFF; // Set C flag if there is a carry from bit 15
     dest += src;
     bool currentZFlag = (F >> 7) & 1;
     Byte resultZ = currentZFlag ? 0x00: 0x01;
@@ -527,9 +532,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case JR_NZ_s8: {
-            bool z_flag = (F >> 7) & 1;
+            bool currentZFlag = (F >> 7) & 1;
             int8_t s8 = loadInt(memory);
-            if (z_flag == 0) {
+            if (currentZFlag == 0) {
                 jr(s8);
                 cycles -= opcycles[opcode];
             } else {
@@ -539,9 +544,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case JR_NC_s8: {
-            bool c_flag = (F >> 4) & 1;
+            bool currentCFlag = (F >> 4) & 1;
             int8_t s8 = loadInt(memory);
-            if (c_flag == 0) {
+            if (currentCFlag == 0) {
                 jr(s8);
                 cycles -= opcycles[opcode];
             } else {
@@ -771,9 +776,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case JP_NZ_a16: {
-            bool z_flag = (F >> 7) & 1;
+            bool currentZFlag = (F >> 7) & 1;
             Word a16 = loadWord(memory);
-            if (z_flag == 0) {
+            if (currentZFlag == 0) {
                 jp(a16);
             } else {
                 // cycles go from 6 to 3 if condition not met, because we still need to read the a16 operand but we don't jump
@@ -782,9 +787,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case JP_NC_a16: {
-            bool c_flag = (F >> 4) & 1;
+            bool currentCFlag = (F >> 4) & 1;
             Word a16 = loadWord(memory);
-            if (c_flag == 0) {
+            if (currentCFlag == 0) {
                 jp(a16);
             } else {
                 cycles -= 3;
@@ -940,9 +945,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case CALL_NZ_a16: {
-            bool z_flag = (F >> 7) & 1;
+            bool currentZFlag = (F >> 7) & 1;
             Word a16 = loadWord(memory);
-            if (z_flag == 0) {
+            if (currentZFlag == 0) {
                 call(a16, memory);
                 cycles -= opcycles[opcode];
             } else {
@@ -952,9 +957,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case CALL_NC_a16: {
-            bool c_flag = (F >> 4) & 1;
+            bool currentCFlag = (F >> 4) & 1;
             Word a16 = loadWord(memory);
-            if (c_flag == 0) {
+            if (currentCFlag == 0) {
                 call(a16, memory);
                 cycles -= opcycles[opcode];
             } else {
@@ -1233,8 +1238,11 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
         // x8 opcodes
         case LD_a16mem_SP: {
             Word a16 = loadWord(memory);
+            // printf("saving SP %04X to address %04X\n", SP, a16);
             Byte SP_low = SP & 0xFF;
+            Byte SP_high = (SP >> 8) & 0xFF;
             loadRegToMemory(memory, a16, SP_low);
+            loadRegToMemory(memory, a16 + 1, SP_high);
             cycles -= opcycles[opcode];
             break;
         }
@@ -1245,9 +1253,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case JR_Z_s8: {
-            bool z_flag = (F >> 7) & 1;
+            bool currentZFlag = (F >> 7) & 1;
             int8_t s8 = loadInt(memory);
-            if (z_flag == 1) {
+            if (currentZFlag == 1) {
                 jr(s8);
                 cycles -= opcycles[opcode];
             } else {
@@ -1257,9 +1265,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case JR_C_s8: {
-            bool c_flag = (F >> 4) & 1;
+            bool currentCFlag = (F >> 4) & 1;
             int8_t s8 = loadInt(memory);
-            if (c_flag == 1) {
+            if (currentCFlag == 1) {
                 jr(s8);
                 cycles -= opcycles[opcode];
             } else {
@@ -1488,9 +1496,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case JP_Z_a16: {
-            bool z_flag = (F >> 7) & 1;
+            bool currentZFlag = (F >> 7) & 1;
             Word a16 = loadWord(memory);
-            if (z_flag == 1) {
+            if (currentZFlag == 1) {
                 jp(a16);
             } else {
                 // cycles go from 6 to 3 if condition not met, because we still need to read the a16 operand but we don't jump
@@ -1499,9 +1507,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case JP_C_a16: {
-            bool c_flag = (F >> 4) & 1;
+            bool currentCFlag = (F >> 4) & 1;
             Word a16 = loadWord(memory);
-            if (c_flag == 1) {
+            if (currentCFlag == 1) {
                 jp(a16);
             } else {
                 // cycles go from 6 to 3 if condition not met, because we still need to read the a16 operand but we don't jump
@@ -1654,9 +1662,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case CALL_Z_a16: {
-            bool z_flag = (F >> 7) & 1;
+            bool currentZFlag = (F >> 7) & 1;
             Word a16 = loadWord(memory);
-            if (z_flag == 1) {
+            if (currentZFlag == 1) {
                 call(a16, memory);
                 cycles -= opcycles[opcode];
             } else {
@@ -1666,9 +1674,9 @@ void Cpu::executeInstructions(uint cycles, Byte opcode, Mem &memory) {
             break;
         }
         case CALL_C_a16: {
-            bool c_flag = (F >> 4) & 1;
+            bool currentCFlag = (F >> 4) & 1;
             Word a16 = loadWord(memory);
-            if (c_flag == 1) {
+            if (currentCFlag == 1) {
                 call(a16, memory);
                 cycles -= opcycles[opcode];
             } else {
