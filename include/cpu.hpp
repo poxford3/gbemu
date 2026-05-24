@@ -22,61 +22,61 @@ struct Mem {
         }
     }
 
-    void inCartRom0(Word address) {
+    bool inCartRom0(Word address) {
         if (address >= 0x0000 && address <= 0x3FFF) return true;
         return false;
     }
 
-    void inCartRom1N(Word address) {
+    bool inCartRom1N(Word address) {
         // todo, figure out rom switching
         if (address >= 0x4000 && address <= 0x7FFF) return true;
         return false;
     }
 
-    void inVRAM(Word address) {
+    bool inVRAM(Word address) {
         if (address >= 0x8000 && address <= 0x9FFF) return true;
         return false;
     }
 
-    void inExRAM(Word address) {
+    bool inExRAM(Word address) {
         // external ram, if any
         if (address >= 0xA000 && address <= 0xBFFF) return true;
         return false;
     }
 
-    void inWorkRAM0(Word address) {
+    bool inWorkRAM0(Word address) {
         if (address >= 0xC000 && address <= 0xCFFF) return true;
         return false;
     }
 
-    void inWorkRAM1(Word address) {
+    bool inWorkRAM1(Word address) {
         if (address >= 0xD000 && address <= 0xDFFF) return true;
         return false;
     }
 
-    void inEchoRAM(Word address) {
+    bool inEchoRAM(Word address) {
         // mirror of 0xC000 - DDFF, not to be used
         if (address >= 0xE000 && address <= 0xFDFF) return true;
         return false;
     }
 
-    void inOAM(Word address) {
+    bool inOAM(Word address) {
         if (address >= 0xFE00 && address <= 0xFE9F) return true;
         return false;
     }
 
-    void inNotUsable(Word address) {
+    bool inNotUsable(Word address) {
         // not to be used
         if (address >= 0xFEA0 && address <= 0xFEFF) return true;
         return false;
     }
 
-    void inIORegisters(Word address) {
+    bool inIORegisters(Word address) {
         if (address >= 0xFF80 && address <= 0xFF7F) return true;
         return false;
     }
 
-    void inHRAM(Word address) {
+    bool inHRAM(Word address) {
         // High RAM
         if (address >= 0xFF80 && address <= 0xFFFE) return true;
         return false;
@@ -104,6 +104,7 @@ struct Cpu {
     // I/O register locations
 
     bool IME = false;
+    bool pendingIME = false;
     bool halted = false;
     bool paused = false;
 

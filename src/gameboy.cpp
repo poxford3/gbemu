@@ -31,8 +31,12 @@ void Gameboy::stop() {
 void Gameboy::tick() {
 
     if (!cpu.paused) {
-        uint cycles = 100;
-        updateTimer(cycles);
+        if (cpu.pendingIME) {
+            cpu.IME = true;
+            cpu.pendingIME = false;
+        }
+
+        cpu.handleInterrupt(memory);
         
         if (cpu.halted) {
             if (memory[cpu.IE] & memory[cpu.IF]) {
@@ -40,10 +44,11 @@ void Gameboy::tick() {
             }
             return;
         }
+        uint cycles = 100;
+        // updateTimer(cycles);
         
         Byte opcode = cpu.loadByte(memory);
         cpu.executeInstructions(cycles, opcode, memory);
-        cpu.handleInterrupt(memory);
     }
     
 }
@@ -59,12 +64,20 @@ void Gameboy::updateTimer(uint cycles) {
         timaCycles += cycles * 4;
 
         int freq = 4096; // Hz
-        if ((memory[cpu.IF] & 3) == 1) { // mask last 2 bits
-            freq = 262144;
-        } else if ((memory[cpu.IF] & 3) == 2) {
-            freq = 65536;
-        } else if ((memory[cpu.IF] & 3) == 3) {
-            freq = 16384;
+        // if ((memory[cpu.IF] & 3) == 1) { // mask last 2 bits
+        //     freq = 262144;
+        // } else if ((memory[cpu.IF] & 3) == 2) {
+        //     freq = 65536;
+        // } else if ((memory[cpu.IF] & 3) == 3) {
+        //     freq = 16384;
+        // }
+
+        switch (memory[cpu.TAC] & 0x03) {
+            case 0: freq = 4096; break;
+            case 1: freq = 262144; break;
+            case 2: freq = 65536; break;
+            case 3: freq = 16384; break;
+
         }
 
         // increment tima based on synced gameboy freq (4.19 MHz)
@@ -74,7 +87,7 @@ void Gameboy::updateTimer(uint cycles) {
             // if TIMA overflows
             if (memory[cpu.TIMA] == 0x00) {
                 // set timer interrupt request
-                memory[cpu.IF] = memory[cpu.IF] | 4;
+                memory[cpu.IF] |= 4;
                 // reset timer to timer modulo
                 memory[cpu.TIMA] = memory[cpu.TMA];
             }

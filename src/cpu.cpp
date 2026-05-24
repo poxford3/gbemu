@@ -200,17 +200,20 @@ void Cpu::call(Word address, Mem &memory) {
 }
 
 void Cpu::handleInterrupt(Mem &memory) {
-    if (!IME) return; // if the master interrupt says there are no interrupts, then we just move on
-
-    // printf("ie %20X, if %20X, pending %20X\n", memory[IE], memory[IF], memory[IE] & memory[IF]);
-
+       
     Byte pending = memory[IE] & memory[IF];
     if (pending == 0) return;
+    
+    halted = false;
+    if (!IME) {
+        // printf("interrupt pending but IME=0, IE=%02X IF=%02X\n", memory[IE], memory[IF]);
+        return;
+    } // if the master interrupt says there are no interrupts, then we just move on
+    IME = false;
 
     for (int i = 0; i < 5; i++) {
         if (pending & (1 << i)) {
-            printf("HOOWWWW\n");
-            IME = false;
+            // printf("handling interrupt %d, PC=%04X IME=%d\n", i, PC, IME);
             memory[IF] &= ~(1 << i);
             pushRegToStack(PC, memory);
 
@@ -221,10 +224,10 @@ void Cpu::handleInterrupt(Mem &memory) {
                 case 3: PC = 0x0058; break; // Serial
                 case 4: PC = 0x0060; break; // Joypad
             }
+            // cycles -= 20; // implemented once the clock is done
             return;
         }
     }
-    // cycles -= 20; // implemented once the clock is done
 }
 
 void Cpu::_RET(Mem &memory) {
@@ -233,11 +236,13 @@ void Cpu::_RET(Mem &memory) {
 }
 
 void Cpu::_EI() {
-    IME = true;
+    // IME = true;
+    pendingIME = true;
 }
 
 void Cpu::_DI() {
     IME = false;
+    pendingIME = false;
 }
 
 
@@ -287,7 +292,7 @@ void Cpu::loadRegToMemory(Mem &memory, Word address, Byte &reg) {
     if (memory[0xFF02] == 0x81) {
         char c = memory[0xFF01];
         printf("%c", c);
-
+        fflush(stdout);
         memory[0xFF02] = 0x00;
     }
 }
