@@ -9,7 +9,7 @@ void Ppu::init() {
 void Ppu::run() {
 }
 
-void Ppu::drawFrame(sf::RenderWindow& window, Mem &memory) {
+void Ppu::drawFrame( Mem &memory) {
 
 }
 

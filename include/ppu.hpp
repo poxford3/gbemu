@@ -1,3 +1,6 @@
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_image.h>
 #include <iostream>
 #include <stdint.h>
 #include <cstdint>
@@ -15,6 +18,10 @@ struct Ppu {
 
     // 3 bytes per pixel
     Byte frameBuffer[GAMEBOY_HEIGHT * GAMEBOY_WIDTH * 3];
+
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    SDL_Texture* texture;
 
 
     Ppu();

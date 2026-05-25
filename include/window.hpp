@@ -1,19 +1,19 @@
-#include <SFML/Graphics.hpp>
-#include <string>
-#include <iostream>
-#include "file.hpp"
+// #include <SFML/Graphics.hpp>
+// #include <string>
+// #include <iostream>
+// #include "file.hpp"
 
-#ifndef WINDOW_HPP
-#define WINDOW_HPP
+// #ifndef WINDOW_HPP
+// #define WINDOW_HPP
 
-class EmuWindow {
-    public:
-        EmuWindow();
-        void run();
-        FileHandler getFileFromUser();
-        void getInputs();
-    private:
-        sf::Window window;
-};
+// class EmuWindow {
+//     public:
+//         EmuWindow();
+//         void run();
+//         FileHandler getFileFromUser();
+//         void getInputs();
+//     private:
+//         sf::Window window;
+// };
 
-#endif // WINDOW_HPP
+// #endif // WINDOW_HPP
