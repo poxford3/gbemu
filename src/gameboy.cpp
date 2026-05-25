@@ -28,7 +28,7 @@ void Gameboy::stop() {
     // todo
 }
 
-void Gameboy::tick() {
+uint Gameboy::tick() {
 
     if (!cpu.paused) {
         if (cpu.pendingIME) {
@@ -42,15 +42,17 @@ void Gameboy::tick() {
             if (memory[cpu.IE] & memory[cpu.IF]) {
                 cpu.halted = false;
             }
-            return;
+            return 1;
         }
-        uint cycles = 100;
-        // updateTimer(cycles);
         
+        uint cycles;
         Byte opcode = cpu.loadByte(memory);
-        cpu.executeInstructions(cycles, opcode, memory);
+        cycles = cpu.executeInstructions(opcode, memory);
+        updateTimer(cycles);
+
+        return cycles;
     }
-    
+    return -1;
 }
 
 void Gameboy::updateTimer(uint cycles) {
@@ -64,14 +66,6 @@ void Gameboy::updateTimer(uint cycles) {
         timaCycles += cycles * 4;
 
         int freq = 4096; // Hz
-        // if ((memory[cpu.IF] & 3) == 1) { // mask last 2 bits
-        //     freq = 262144;
-        // } else if ((memory[cpu.IF] & 3) == 2) {
-        //     freq = 65536;
-        // } else if ((memory[cpu.IF] & 3) == 3) {
-        //     freq = 16384;
-        // }
-
         switch (memory[cpu.TAC] & 0x03) {
             case 0: freq = 4096; break;
             case 1: freq = 262144; break;
@@ -149,9 +143,8 @@ void Gameboy::testWithJson(std::string path) {
             cpu.TEST_showAllRegValuesDecimal();
 
             // tick();
-            uint cycles = 100;
             Byte opcode = cpu.loadByte(memory);
-            cpu.executeInstructions(cycles, opcode, memory);
+            uint cycles = cpu.executeInstructions(opcode, memory);
 
 
             if (

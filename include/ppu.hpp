@@ -1,4 +1,3 @@
-#include <SFML/Graphics.hpp>
 #include <iostream>
 #include <stdint.h>
 #include <cstdint>
@@ -17,12 +16,11 @@ struct Ppu {
     // 3 bytes per pixel
     Byte frameBuffer[GAMEBOY_HEIGHT * GAMEBOY_WIDTH * 3];
 
-    sf::RenderWindow window;
 
     Ppu();
     void init();
     void run();
-    void drawFrame();
+    void drawFrame( Mem& memory);
     void displayMemory(Mem &memory);
 };
 

@@ -256,8 +256,8 @@ struct Cpu {
     void popStackToReg(Word &reg, Mem &memory);
     void pushRegToStack(Word reg, Mem &memory);
 
-    void executeInstructions(uint cycles, Byte opcode, Mem &memory);
-    void executeExtendedOpcode(uint &cycles, Byte opcode, Mem &memory);
+    uint executeInstructions(Byte opcode, Mem &memory);
+    uint executeExtendedOpcode(Byte opcode, Mem &memory);
     void showAllRegisterValues();
     void TEST_showAllRegValuesDecimal();
 
