@@ -96,8 +96,8 @@ struct Mem {
 };
 
 
-struct Cpu {
-
+class Cpu {
+    public:
     Word PC; // program counter
     Word SP; // stack pointer
 

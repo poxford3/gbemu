@@ -345,7 +345,7 @@ void Cpu::_RLA(std::optional<bool> throughCarry) {
         A |= oldBit7 ? 1 : 0; // Rotate: old bit 7 goes to bit 0 (RLC)
     }
     // RL(C)A affects Z flag directly to zero by passing in any value BUT zero
-    updateFlags(0x01, false, false, oldBit7); // Z flag is set based on result, N H flags are reset, C flag is updated above
+    updateFlags(0x01, false, false, oldBit7); // Z flag is set to 0 always (passing in nonzero to ensure), N H flags are reset, C flag is updated above
 }
 
 void Cpu::rotateLeft(Byte &value, std::optional<bool> throughCarry) {

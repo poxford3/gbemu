@@ -1,10 +1,11 @@
 #include "cpu.hpp"
+#include "ppu.hpp"
 #include "types.hpp"
 
 #ifndef GAMEBOY_HPP
 #define GAMEBOY_HPP
 
-struct Gameboy {
+class Gameboy {
     public:
         Mem memory;
         bool checksumPassed = false;
@@ -20,9 +21,10 @@ struct Gameboy {
         void printMemory();
         void testWithJson(std::string path);
         void updateTimer(uint cycles);
+        Cpu cpu;
+        Ppu ppu;
 
     private:
-        Cpu cpu;
         // std::vector<Byte> program;
 
 };
