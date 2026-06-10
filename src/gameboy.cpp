@@ -1,8 +1,8 @@
 #include <string>
 #include <fstream>
 #include "gameboy.hpp"
-#include "types.hpp"
-#include "opcodeNames.hpp"
+#include "utils/types.hpp"
+#include "cpu/opcodeNames.hpp"
 
 Gameboy::Gameboy() {
     start();

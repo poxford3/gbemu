@@ -1,4 +1,4 @@
-#include "types.hpp"
+#include "utils/types.hpp"
 
 enum Opcodes : Byte {
     // Opcodes

@@ -1,6 +1,6 @@
 #include <unordered_map>
 #include <string>
-#include "types.hpp"
+#include "utils/types.hpp"
 
 std::unordered_map<Byte, std::string> opcodeNames = {
     {0x00, "NOP"},

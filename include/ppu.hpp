@@ -4,10 +4,10 @@
 #include <iostream>
 #include <stdint.h>
 #include <cstdint>
-#include "cpu.hpp"
-#include "palette.hpp"
-#include "file.hpp"
-#include "types.hpp"
+#include "cpu/cpu.hpp"
+#include "utils/palette.hpp"
+#include "utils/file.hpp"
+#include "utils/types.hpp"
 
 #ifndef PPU_HPP
 #define PPU_HPP

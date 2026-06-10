@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <cstdint>
 #include <ctype.h>
-#include "types.hpp"
+#include "utils/types.hpp"
 
 
 #ifndef CPU_HPP

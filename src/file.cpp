@@ -1,6 +1,6 @@
 #include <iostream>
-#include "file.hpp"
-#include "types.hpp"
+#include "utils/file.hpp"
+#include "utils/types.hpp"
 
 FileHandler::FileHandler(const std::string& filePath) : m_filePath{filePath} {}
 

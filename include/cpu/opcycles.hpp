@@ -1,4 +1,4 @@
-#include "types.hpp"
+#include "utils/types.hpp"
 
 // opcode cycles
 // https://meganesu.github.io/generate-gb-opcodes/

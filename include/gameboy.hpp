@@ -1,6 +1,8 @@
-#include "cpu.hpp"
+#include "cpu/cpu.hpp"
 #include "ppu.hpp"
-#include "types.hpp"
+#include "apu.hpp"
+#include "mmu.hpp"
+#include "utils/types.hpp"
 
 #ifndef GAMEBOY_HPP
 #define GAMEBOY_HPP
@@ -23,6 +25,8 @@ class Gameboy {
         void updateTimer(uint cycles);
         Cpu cpu;
         Ppu ppu;
+        Apu apu;
+        // Mmu mmu;
 
     private:
         // std::vector<Byte> program;

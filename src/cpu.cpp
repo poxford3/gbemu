@@ -1,9 +1,9 @@
 #include <iostream>
 #include <cstdint>
-#include "cpu.hpp"
-#include "types.hpp"
-#include "opcodes.hpp"
-#include "opcycles.hpp"
+#include "cpu/cpu.hpp"
+#include "utils/types.hpp"
+#include "cpu/opcodes.hpp"
+#include "cpu/opcycles.hpp"
 
 
 void Cpu::reset(Mem &memory) {

@@ -122,20 +122,20 @@ void Ppu::drawFrame(Cpu cpu, Mem memory) {
     SDL_RenderFillRect(renderer, &separator);
 
     // tile data location: $8000-$97FF
-    Byte tileMapStart = (((memory[cpu.LCDC] >> 3) & 1) == 1) ? 0x9c00 : 0x9800;
-    Byte tileDataStart = (((memory[cpu.LCDC] >> 4) & 1) == 1) ? 0x8000 : 0x8800;
+    // Byte tileMapStart = (((memory[cpu.LCDC] >> 3) & 1) == 1) ? 0x9c00 : 0x9800;
+    // Byte tileDataStart = (((memory[cpu.LCDC] >> 4) & 1) == 1) ? 0x8000 : 0x8800;
+    // // for (Word i = 0; i < 0x17FF; i++) {
+    // //     // frameBuffer[i] = memory[0x8000 + i];
+    // //     // TODO set it up so you get the hi and lo bits of the memory to render to the screen
+    // //     for (Byte j = 0; j < 0; j++) {
+    // //         frameBuffer[j] = memory[0x8000 + 1] >> j;
+    // //     }
+    // // }
     // for (Word i = 0; i < 0x17FF; i++) {
-    //     // frameBuffer[i] = memory[0x8000 + i];
-    //     // TODO set it up so you get the hi and lo bits of the memory to render to the screen
-    //     for (Byte j = 0; j < 0; j++) {
-    //         frameBuffer[j] = memory[0x8000 + 1] >> j;
-    //     }
-    // }
-    for (Word i = 0; i < 0x17FF; i++) {
-        Byte hi = memory[tileDataStart + i];
-        Byte lo = memory[tileDataStart + i + 1];
+    //     Byte hi = memory[tileDataStart + i];
+    //     Byte lo = memory[tileDataStart + i + 1];
 
-    }
+    // }
 
     // SDL_UpdateTexture(gbTexture, NULL, frameBuffer, EMULATOR_SCREEN_WIDTH);
     // SDL_RenderCopy(renderer, gbTexture, NULL, NULL);

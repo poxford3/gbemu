@@ -1,9 +1,9 @@
 #define CATCH_CONFIG_MAIN
 
 #include <catch2/catch_test_macros.hpp>
-#include "cpu.hpp"
-#include "opcodes.hpp"
-#include "opcycles.hpp"
+#include "cpu/cpu.hpp"
+#include "cpu/opcodes.hpp"
+#include "cpu/opcycles.hpp"
 
 TEST_CASE("AND instruction", "[AND]") {
     Mem memory;
