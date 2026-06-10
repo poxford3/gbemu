@@ -17,8 +17,8 @@ void Ppu::init() {
     window = SDL_CreateWindow("gbemu",
                     SDL_WINDOWPOS_CENTERED,
                     SDL_WINDOWPOS_CENTERED,
-                    GAMEBOY_WIDTH * winScale, 
-                    GAMEBOY_HEIGHT * winScale,
+                    (EMULATOR_SCREEN_WIDTH + MEMORY_SECTION_WIDTH), // allow extra room to render parts of the CPU
+                    EMULATOR_SCREEN_HEIGHT,
                     SDL_WINDOW_SHOWN);
 
     if (window == NULL) {
@@ -31,11 +31,23 @@ void Ppu::init() {
         printf("error initializing renderer. SDL error: %s\n", SDL_GetError());
     }
 
+    gbTexture = SDL_CreateTexture(
+                        renderer,
+                        SDL_PIXELFORMAT_RGB24,
+                        SDL_TEXTUREACCESS_STREAMING,
+                        EMULATOR_SCREEN_WIDTH,
+                        EMULATOR_SCREEN_HEIGHT
+                    );
+
+    if (gbTexture == NULL) {
+        printf("error initializing texture, SDL error %s\n", SDL_GetError());
+    }
+
     if (TTF_Init()) {
         printf("error initializing font, SDL error: %s\n", TTF_GetError());
     }
 
-    font = TTF_OpenFont("/Users/poxford3/Documents/coding/cpp/gbemu/assets/arial/ARIAL.TTF", 36);
+    font = TTF_OpenFont("/Users/poxford3/Documents/coding/cpp/gbemu/assets/arial/ARIAL.TTF", 24);
     if (font == NULL) {
         printf("error loading font: %s\n", TTF_GetError());
     }
@@ -63,7 +75,7 @@ void Ppu::close() {
 void Ppu::run() {}
 
 void Ppu::drawText(const std::string& text, int x, int y) {
-    SDL_Color textColor = {0, 255, 255, 255};
+    SDL_Color textColor = {0, 0, 0, 255};
     SDL_Surface* surface = TTF_RenderText_Solid(font, text.c_str(), textColor);
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
     
@@ -76,7 +88,7 @@ void Ppu::drawText(const std::string& text, int x, int y) {
     SDL_DestroyTexture(texture);
 }
 
-void Ppu::drawFrame(Cpu cpu) {
+void Ppu::drawFrame(Cpu cpu, Mem memory) {
     SDL_Event event;
 
     while (SDL_PollEvent(&event) != 0) {
@@ -92,12 +104,41 @@ void Ppu::drawFrame(Cpu cpu) {
     SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
     SDL_RenderClear(renderer);
 
-    char buf[32];
-    snprintf(buf, sizeof(buf), "A: 0x%02X", cpu.A); drawText(buf, 0, 0);
-    snprintf(buf, sizeof(buf), "F: 0x%02X", cpu.F); drawText(buf, 0, 50);
-    snprintf(buf, sizeof(buf), "B: 0x%02X", cpu.B); drawText(buf, 0, 100);
-    snprintf(buf, sizeof(buf), "C: 0x%02X", cpu.C); drawText(buf, 0, 150);
-    snprintf(buf, sizeof(buf), "OBP0: 0x%02X", cpu.OBP0); drawText(buf, 0, 200);
+    char buf[80];
+    uint lineHeight = 30;
+    uint x = EMULATOR_SCREEN_WIDTH + 5; // +5 for a bit of left padding
+    snprintf(buf, sizeof(buf), "A: 0x%02X", cpu.A); drawText(buf, x, lineHeight * 0);
+    snprintf(buf, sizeof(buf), "F: 0x%02X", cpu.F); drawText(buf, x, lineHeight * 1);
+    snprintf(buf, sizeof(buf), "B: 0x%02X", cpu.B); drawText(buf, x, lineHeight * 2);
+    snprintf(buf, sizeof(buf), "C: 0x%02X", cpu.C); drawText(buf, x, lineHeight * 3);
+    snprintf(buf, sizeof(buf), "D: 0x%02X", cpu.D); drawText(buf, x, lineHeight * 4);
+    snprintf(buf, sizeof(buf), "E: 0x%02X", cpu.E); drawText(buf, x, lineHeight * 5);
+    snprintf(buf, sizeof(buf), "H: 0x%02X", cpu.H); drawText(buf, x, lineHeight * 6);
+    snprintf(buf, sizeof(buf), "L: 0x%02X", cpu.L); drawText(buf, x, lineHeight * 7);
+    snprintf(buf, sizeof(buf), "PC: 0x%02X", cpu.PC); drawText(buf, x, lineHeight * 8);
+    snprintf(buf, sizeof(buf), "SP: 0x%02X", cpu.SP); drawText(buf, x, lineHeight * 9);
+    SDL_Rect separator = {EMULATOR_SCREEN_WIDTH, 0, 1, EMULATOR_SCREEN_HEIGHT};
+    SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
+    SDL_RenderFillRect(renderer, &separator);
+
+    // tile data location: $8000-$97FF
+    Byte tileMapStart = (((memory[cpu.LCDC] >> 3) & 1) == 1) ? 0x9c00 : 0x9800;
+    Byte tileDataStart = (((memory[cpu.LCDC] >> 4) & 1) == 1) ? 0x8000 : 0x8800;
+    // for (Word i = 0; i < 0x17FF; i++) {
+    //     // frameBuffer[i] = memory[0x8000 + i];
+    //     // TODO set it up so you get the hi and lo bits of the memory to render to the screen
+    //     for (Byte j = 0; j < 0; j++) {
+    //         frameBuffer[j] = memory[0x8000 + 1] >> j;
+    //     }
+    // }
+    for (Word i = 0; i < 0x17FF; i++) {
+        Byte hi = memory[tileDataStart + i];
+        Byte lo = memory[tileDataStart + i + 1];
+
+    }
+
+    // SDL_UpdateTexture(gbTexture, NULL, frameBuffer, EMULATOR_SCREEN_WIDTH);
+    // SDL_RenderCopy(renderer, gbTexture, NULL, NULL);
 
 
     // present the frame

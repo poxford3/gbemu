@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <SDL.h>
 #include "ppu.hpp"
 #include "gameboy.hpp"
 #include "file.hpp"
@@ -13,22 +14,24 @@ int main() {
     FileHandler fileH(path);
     Gameboy gameboy (fileH.readFile());
     
-    Ppu ppu;
-    ppu.init();
 
-    if (gameboy.checksumPassed) {
-        while (ppu.running) {
-                uint frameCycles = 0;
-                while (frameCycles < 70224) {
-                    uint cycles = gameboy.tick();
-                    frameCycles += cycles;
-                }
-                ppu.drawFrame(gameboy.cpu);
-                SDL_Delay(1000); // 16 ms = 60 fps (1/60)
-            }
-    }
+    // PPU not ready, need other things to be working first
+    // Ppu ppu;
+    // ppu.init();
 
-    ppu.close();
+    // if (gameboy.checksumPassed) {
+    //     while (ppu.running) {
+    //             uint frameCycles = 0;
+    //             while (frameCycles < 70224) { // 70224 = 154 * 456 (154 scanlines, 456 "dots"/cycles per scanline)
+    //                 uint cycles = gameboy.tick();
+    //                 frameCycles += cycles;
+    //             }
+    //             ppu.drawFrame(gameboy.cpu, gameboy.memory);
+    //             SDL_Delay(16); // 16 ms = 60 fps (1/60)
+    //         }
+    // }
+
+    // ppu.close();
     
     return 0;
 }
