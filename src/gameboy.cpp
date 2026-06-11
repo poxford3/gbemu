@@ -12,9 +12,7 @@ Gameboy::Gameboy(const std::vector<Byte>& program) {
     start();
 
     // std::cout << "num bytes of prog: " << program.size() << std::endl;
-    uint numBytes = program.size();
     
-    cpu.loadProgram(program, numBytes, memory);
     mmu.loadRom(program);
 
     checksumPassed = checksum();
@@ -22,7 +20,7 @@ Gameboy::Gameboy(const std::vector<Byte>& program) {
 }
 
 void Gameboy::start() {
-    cpu.reset(memory);
+    cpu.reset();
     mmu.reset();
 };
 
@@ -38,18 +36,18 @@ uint Gameboy::tick() {
             cpu.pendingIME = false;
         }
 
-        cpu.handleInterrupt(memory);
+        cpu.handleInterrupt(mmu);
         
         if (cpu.halted) {
-            if (memory[cpu.IE] & memory[cpu.IF]) {
+            if (mmu.readByte(mmu.interruptEnableRegister) & mmu.readByte(mmu.IF)) {
                 cpu.halted = false;
             }
             return 1;
         }
         
         uint cycles;
-        Byte opcode = cpu.loadByte(memory);
-        cycles = cpu.executeInstructions(opcode, memory);
+        Byte opcode = cpu.loadByte(mmu);
+        cycles = cpu.executeInstructions(opcode, mmu);
         updateTimer(cycles);
 
         return cycles;
@@ -61,14 +59,14 @@ void Gameboy::updateTimer(uint cycles) {
     divCycles += cycles;
     if (divCycles >= 256) {
         divCycles -= 256;
-        memory[cpu.DIV]++;
+        mmu.writeByte(mmu.DIV, mmu.readByte(mmu.DIV) + 1);
     }
 
-    if ((memory[cpu.TAC] >> 2) & 1) {
+    if ((mmu.readByte(mmu.TAC) >> 2) & 1) {
         timaCycles += cycles * 4;
 
         int freq = 4096; // Hz
-        switch (memory[cpu.TAC] & 0x03) {
+        switch (mmu.readByte(mmu.TAC) & 0x03) {
             case 0: freq = 4096; break;
             case 1: freq = 262144; break;
             case 2: freq = 65536; break;
@@ -79,13 +77,13 @@ void Gameboy::updateTimer(uint cycles) {
         // increment tima based on synced gameboy freq (4.19 MHz)
         while (timaCycles >= (4194304 / freq)) {
             // increment TIMA
-            memory[cpu.TIMA]++;
+            mmu.writeByte(mmu.TIMA, mmu.readByte(mmu.TIMA) + 1);
             // if TIMA overflows
-            if (memory[cpu.TIMA] == 0x00) {
+            if (mmu.readByte(mmu.TIMA) == 0x00) {
                 // set timer interrupt request
-                memory[cpu.IF] |= 4;
+                mmu.writeByte(mmu.IF, mmu.readByte(mmu.IF) | 4);
                 // reset timer to timer modulo
-                memory[cpu.TIMA] = memory[cpu.TMA];
+                mmu.writeByte(mmu.TIMA, mmu.readByte(mmu.TMA));
             }
             timaCycles -= (4194304 / freq);
         }
@@ -96,16 +94,16 @@ bool Gameboy::checksum() {
     // https://gbdev.io/pandocs/The_Cartridge_Header.html?highlight=checksum#014d--header-checksum
     Byte checksum = 0;
     for (Word address = 0x0134; address <= 0x014C; address++) {
-        checksum = checksum - memory[address] - 1;
+        checksum = checksum - mmu.readByte(address) - 1;
     }
     // if the memory address at 0x014D matches bottom 8 bits of checksum, header passes
-    return memory[0x014D] == (checksum & 0xFF) ? true : false;
+    return mmu.readByte(0x014D) == (checksum & 0xFF) ? true : false;
 }
 
 void Gameboy::printMemory() {
     // bricks script, JUST for testing
     for (uint i = 0x0; i <= 0x10000; i++) {
-        std::cout << "memory[" << i << "] = " << std::hex << (int)memory[i] << std::endl;
+        std::cout << "memory[" << i << "] = " << std::hex << (int)mmu.readByte(i) << std::endl;
     }
 }
 
@@ -122,7 +120,7 @@ void Gameboy::testWithJson(std::string path) {
         bool singleFile = true;
 
         for (int i = 0; i < opcodeTestData.size(); i++) {
-            cpu.reset(memory);
+            cpu.reset();
             // std::cout << i << std::endl;
             // set initial values
             cpu.PC = opcodeTestData[i]["initial"]["pc"].get<Word>();
@@ -136,17 +134,17 @@ void Gameboy::testWithJson(std::string path) {
             cpu.H = opcodeTestData[i]["initial"]["h"].get<Byte>();
             cpu.L = opcodeTestData[i]["initial"]["l"].get<Byte>();
             cpu.IME = opcodeTestData[i]["initial"]["ime"].get<int>() != 0; // if false, return false
-            memory[cpu.IE] = opcodeTestData[i]["initial"]["ie"].get<Byte>();
+            mmu.writeByte(mmu.interruptEnableRegister, opcodeTestData[i]["initial"]["ie"].get<Byte>());
             // load in the opcode to memory, along with necessary values
             for (int j = 0; j < opcodeTestData[i]["initial"]["ram"].size(); j++) {
-                memory[opcodeTestData[i]["initial"]["ram"][j][0]] = opcodeTestData[i]["initial"]["ram"][j][1];
+                mmu.writeByte(opcodeTestData[i]["initial"]["ram"][j][0], opcodeTestData[i]["initial"]["ram"][j][1]);
             }
 
             cpu.TEST_showAllRegValuesDecimal();
 
             // tick();
-            Byte opcode = cpu.loadByte(memory);
-            uint cycles = cpu.executeInstructions(opcode, memory);
+            Byte opcode = cpu.loadByte(mmu);
+            uint cycles = cpu.executeInstructions(opcode, mmu);
 
 
             if (
@@ -161,13 +159,13 @@ void Gameboy::testWithJson(std::string path) {
                 cpu.H != opcodeTestData[i]["final"]["h"] ||
                 cpu.L != opcodeTestData[i]["final"]["l"] ||
                 cpu.IME != (opcodeTestData[i]["final"]["ime"].get<int>() != 0)
-                // || memory[opcodeTestData[i]["final"]["ram"][0][0]] != opcodeTestData[i]["final"]["ram"][0][1]
+                // || mmu.readByte(opcodeTestData[i]["final"]["ram"][0][0]) != opcodeTestData[i]["final"]["ram"][0][1]
             ) {
                 failCount++;
                 singleFile && std::cout << "error executing operation out mem, " << opcodeTestData[i]["name"] << std::endl;
                 bool memoryError = false;
                 for (int j = 0; j < opcodeTestData[i]["final"]["ram"].size(); j++) {
-                    if (memory[opcodeTestData[i]["final"]["ram"][j][0]] != opcodeTestData[i]["final"]["ram"][j][1]) {
+                    if (mmu.readByte(opcodeTestData[i]["final"]["ram"][j][0]) != opcodeTestData[i]["final"]["ram"][j][1]) {
                         memoryError = true;
                     }
                 }

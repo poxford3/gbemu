@@ -28,9 +28,9 @@ class Ppu {
         void run();
         void close();
         SDL_Renderer* GetRenderer();
-        void displayMemory(Mem &memory);
+        void displayMemory(Mmu &memory);
         void drawText(const std::string& text, int x, int y);
-        void drawFrame(Cpu cpu, Mem memory);
+        void drawFrame(Cpu cpu, Mmu memory);
         FileHandler getFileFromUser();
     private:
         static const uint GAMEBOY_HEIGHT = 144;

@@ -88,7 +88,7 @@ void Ppu::drawText(const std::string& text, int x, int y) {
     SDL_DestroyTexture(texture);
 }
 
-void Ppu::drawFrame(Cpu cpu, Mem memory) {
+void Ppu::drawFrame(Cpu cpu, Mmu memory) {
     SDL_Event event;
 
     while (SDL_PollEvent(&event) != 0) {
@@ -158,7 +158,7 @@ void Ppu::drawFrame(Cpu cpu, Mem memory) {
     // }
 }
 
-void Ppu::displayMemory(Mem &memory) {
+void Ppu::displayMemory(Mmu &memory) {
 
 }
 

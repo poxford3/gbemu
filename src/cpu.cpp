@@ -6,7 +6,7 @@
 #include "cpu/opcycles.hpp"
 
 
-void Cpu::reset(Mem &memory) {
+void Cpu::reset() {
     // https://gbdev.io/pandocs/Power_Up_Sequence.html?highlight=boot#cpu-registers
     // Initial values based on Game Boy
     PC = 0x0100;
@@ -20,95 +20,12 @@ void Cpu::reset(Mem &memory) {
     H = 0x01;
     L = 0x4D;
 
-    memory.init(); // Initialize memory to 0
-
     IME = false;
-
-    memory[P1] = 0xCF;
-    memory[SB] = 0x0;
-    memory[SC] = 0x7E;
-    memory[DIV] = 0x18;
-    memory[TIMA] = 0x0;
-    memory[TMA] = 0x0;
-    memory[TAC] = 0xF8;
-    memory[IF] = 0xE1;
-    memory[NR10] = 0x80;
-    memory[NR11] = 0xBF;
-    memory[NR12] = 0xF3;
-    memory[NR13] = 0xFF;
-    memory[NR14] = 0xBF;
-    memory[NR21] = 0x3F;
-    memory[NR22] = 0x0;
-    memory[NR23] = 0xFF;
-    memory[NR24] = 0xBF;
-    memory[NR30] = 0x7F;
-    memory[NR31] = 0xFF;
-    memory[NR32] = 0x9F;
-    memory[NR33] = 0xFF;
-    memory[NR34] = 0xBF;
-    memory[NR41] = 0xFF;
-    memory[NR42] = 0x0;
-    memory[NR43] = 0x0;
-    memory[NR44] = 0xBF;
-    memory[NR50] = 0x77;
-    memory[NR51] = 0xF3;
-    memory[NR52] = 0xF1;
-    memory[LCDC] = 0x91;
-    memory[STAT] = 0x81;
-    memory[SCY] = 0x0;
-    memory[SCX] = 0x0;
-    memory[LY] = 0x91;
-    memory[LYC] = 0x0;
-    memory[DMA] = 0xFF;
-    memory[BGP] = 0xFC;
-    // memory[OBP0] = 0x??7;
-    // memory[OBP1] = 0x??7;
-    memory[WY] = 0x0;
-    memory[WX] = 0x0;
-    // memory[KEY0] = 0x—;
-    // memory[KEY1] = 0x—;
-    // memory[VBK] = 0x—;
-    // memory[BANK] = 0x—;
-    // memory[HDMA1] = 0x—;
-    // memory[HDMA2] = 0x—;
-    // memory[HDMA3] = 0x—;
-    // memory[HDMA4] = 0x—;
-    // memory[HDMA5] = 0x—;
-    // memory[RP] = 0x—;
-    // memory[BCPS] = 0x—;
-    // memory[BCPD] = 0x—;
-    // memory[OCPS] = 0x—;
-    // memory[OCPD] = 0x—;
-    // memory[SVBK] = 0x—;
-    memory[IE] = 0x0;
+    pendingIME = false;
+    halted = false;
+    paused = false;
 }
 
-void Cpu::loadProgram(std::vector<Byte> program, uint numBytes, Mem &memory) {
-    // check for less than 0x8000 since that's the 32kb limit of cart rom
-    for (uint i = 0; i < numBytes && i < 0x8000; i++) {
-        memory[i] = program[i];
-    }
-
-    // printf("ROM header: %02X %02X %02X %02X %02X %02X %02X %02X\n", 
-    // memory[0x0100], memory[0x0101], memory[0x0102], memory[0x0103],
-    // memory[0x0104], memory[0x0105], memory[0x0106], memory[0x0107]);
-    // printf("MBC type: %02X\n", memory[0x0147]);
-    // printf("ROM size: %02X\n", memory[0x0148]);
-};
-
-void Cpu::runProgram(Mem &memory) {
-    std::cout << "run" << std::endl;
-    // while (PC < 0x0410) {
-    while (1) {
-        Byte opcode = loadByte(memory);
-
-        uint cycles = 100;
-        std::cout << "opcode: (0x" << std::hex << static_cast<int>(opcode) << "), F: 0x" << std::hex << static_cast<int>(F) << std::dec;
-        std::printf(" PC: 0x%04X", PC);
-        std::printf(" SP: 0x%04X\n", SP);
-        executeInstructions(opcode, memory);
-    }
-};
 
 void Cpu::updateFlags(Byte result, bool isSubtraction, bool halfCarry, bool carry) {
     bool flag_z = (result == 0); // Set Z flag if result is zero
@@ -149,14 +66,6 @@ void Cpu::TEST_showAllRegValuesDecimal() {
     std::cout << "PC: " << PC << std::endl;
 }
 
-Byte Cpu::readByte(Mem &memory, Word address) {
-    // if (address >= 0x4000 && address <= 0x7FFF) {
-    //     return ROM[(currentROMBank * 0x4000) + (address - 0x4000)];
-    // }
-    Byte value = memory[address];
-    return value;
-}
-
 Word Cpu::incWord(Word value) {
     return (value + 1) & 0xFFFF; // Increment and wrap around at 0xFFFF
 }
@@ -192,21 +101,21 @@ void Cpu::jr(int8_t offset) {
     PC += offset;
 }
 
-void Cpu::call(Word address, Mem &memory) {
+void Cpu::call(Word address, Mmu &memory) {
     // Push current PC onto stack
     pushRegToStack(PC, memory);
     // Jump to the specified address
     PC = address;
 }
 
-void Cpu::handleInterrupt(Mem &memory) {
+void Cpu::handleInterrupt(Mmu &memory) {
        
-    Byte pending = memory[IE] & memory[IF];
+    Byte pending = memory.interruptEnableRegister & memory.readByte(Mmu::IF);
     if (pending == 0) return;
     
     halted = false;
     if (!IME) {
-        // printf("interrupt pending but IME=0, IE=%02X IF=%02X\n", memory[IE], memory[IF]);
+        // printf("interrupt pending but IME=0, IE=%02X IF=%02X\n", memory.interruptEnableRegister, memory.ioRegisters[Mmu::IF]);
         return;
     } // if the master interrupt says there are no interrupts, then we just move on
     IME = false;
@@ -214,7 +123,7 @@ void Cpu::handleInterrupt(Mem &memory) {
     for (int i = 0; i < 5; i++) {
         if (pending & (1 << i)) {
             // printf("handling interrupt %d, PC=%04X IME=%d\n", i, PC, IME);
-            memory[IF] &= ~(1 << i);
+            memory.writeByte(Mmu::IF, memory.readByte(Mmu::IF) & ~(1 << i)); // reset the interrupt request bit for this interrupt
             pushRegToStack(PC, memory);
 
             switch (i) {
@@ -230,7 +139,7 @@ void Cpu::handleInterrupt(Mem &memory) {
     }
 }
 
-void Cpu::_RET(Mem &memory) {
+void Cpu::_RET(Mmu &memory) {
     // Pop return address from stack and jump to it
     popStackToReg(PC, memory);
 }
@@ -246,24 +155,24 @@ void Cpu::_DI() {
 }
 
 
-Word Cpu::loadWord(Mem &memory) {
-    Byte low = memory[PC];
+Word Cpu::loadWord(Mmu &memory) {
+    Byte low = memory.readByte(PC);
     PC++; // Increment program counter to point to the next byte
-    Byte high = memory[PC];
+    Byte high = memory.readByte(PC);
     PC++; // Increment program counter to point to the next instruction
     Word value = (high << 8) | low;
     return value;
 }
 
-Byte Cpu::loadByte(Mem &memory) {
-    Byte value = memory[PC];
+Byte Cpu::loadByte(Mmu &memory) {
+    Byte value = memory.readByte(PC);
     PC++; // Increment program counter to point to the next instruction
     return value;
 }
 
-int8_t Cpu::loadInt(Mem &memory) {
-    int8_t value = memory[PC];
-    // printf("PC: %20X, IE: %20X\n", PC, memory[IE]);
+int8_t Cpu::loadInt(Mmu &memory) {
+    int8_t value = memory.readInt(PC);
+    // printf("PC: %20X, IE: %20X\n", PC, memory.interruptEnableRegister);
     PC++;
     return value;
 }
@@ -276,32 +185,7 @@ void Cpu::loadRegToReg(Word &dest, Word &src) {
     dest = src;
 }
 
-void Cpu::loadRegToMemory(Mem &memory, Word address, Byte &reg) {
-    // aka writeByte
-    // if (address == 0xFF02) {
-    //     printf("SC write: %02X SB: %02X PC: %04X\n", reg, memory[0xFF01], PC);
-    // }
-    // if (address >= 0x2000 && address <= 0x3FFF) {
-    //     // MBC1 ROM bank number (lower 5 bits)
-    //     Byte bank = value & 0x1F;
-    //     if (bank == 0) bank = 1; // bank 0 is not selectable here
-    //     currentROMBank = bank;
-    //     return;
-    // }
-    memory[address] = reg;
-    if (memory[0xFF02] == 0x81) {
-        char c = memory[0xFF01];
-        printf("%c", c);
-        fflush(stdout);
-        memory[0xFF02] = 0x00;
-    }
-}
-
-void Cpu::loadRegFromMemory(Mem &memory, Word address, Byte &reg) {
-    reg = memory[address];
-}
-
-void Cpu::RST(Word address, Mem &memory) {
+void Cpu::RST(Word address, Mmu &memory) {
     // Push current PC onto stack
     pushRegToStack(PC, memory);
     // Jump to the specified address
@@ -502,20 +386,20 @@ void Cpu::_DAA(Byte &A) {
 }
 
 
-void Cpu::popStackToReg(Word &reg, Mem &memory) {
-    reg = memory[SP] | (memory[SP + 1] << 8); // Pop low byte and high byte from stack
+void Cpu::popStackToReg(Word &reg, Mmu &memory) {
+    reg = memory.readByte(SP) | (memory.readByte(SP + 1) << 8); // Pop low byte and high byte from stack
     SP += 2; // Increment stack pointer by 2
 }
 
-void Cpu::pushRegToStack(Word reg, Mem &memory) {
+void Cpu::pushRegToStack(Word reg, Mmu &memory) {
     --SP;
-    memory[SP] = (reg >> 8) & 0xFF; // Push high byte onto stack
+    memory.writeByte(SP, (reg >> 8) & 0xFF); // write high byte to SP - 1
     --SP;
-    memory[SP] = reg & 0xFF; // Push low byte onto stack
+    memory.writeByte(SP, reg & 0xFF); // write high byte to SP - 2
 }
 
 
-uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
+uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
 
     uint cycles;
     switch (opcode) {
@@ -570,7 +454,7 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             break;
         }
         case LD_HLmem_B: {
-            loadRegToMemory(memory, HL, B);
+            memory.writeByte(HL, B);
             cycles = opcycles[opcode];
             break;
         }
@@ -617,7 +501,7 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
         case LD_a8mem_A: {
             Byte a8 = loadByte(memory);
             Word a8MemPadded = 0xFF00 + a8;
-            loadRegToMemory(memory, a8MemPadded, A);
+            memory.writeByte(a8MemPadded, A);
             cycles = opcycles[opcode];
             break;
         }
@@ -625,7 +509,7 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             Byte a8 = loadByte(memory);
             Word a8address = 0xFF00 + a8; // only the lower half of the address is provided, opcode always between 0xFF00 - 0xFFFF
             // std::cout << std::hex << a8address << std::dec << std::endl;
-            loadRegFromMemory(memory, a8address, A);
+            A = memory.readByte(a8address);
             cycles = opcycles[opcode];
             break;
         }
@@ -667,7 +551,7 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             break;
         }
         case LD_HLmem_C: {
-            loadRegToMemory(memory, HL, C);
+            memory.writeByte(HL, C);
             cycles = opcycles[opcode];
             break;
         }
@@ -715,23 +599,23 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
 
         // x2 opcodes
         case LD_BCmem_A: {
-            loadRegToMemory(memory, BC, A);
+            memory.writeByte(BC, A);
             cycles = opcycles[opcode];
             break;
         }
         case LD_DEmem_A: {
-            loadRegToMemory(memory, DE, A);
+            memory.writeByte(DE, A);
             cycles = opcycles[opcode];
             break;
         }
         case LD_HLi_A: {
-            loadRegToMemory(memory, HL, A);
+            memory.writeByte(HL, A);
             HL = incWord(HL);
             cycles = opcycles[opcode];
             break;
         }
         case LD_HLd_A: {
-            loadRegToMemory(memory, HL, A);
+            memory.writeByte(HL, A);
             HL = decWord(HL);
             cycles = opcycles[opcode];
             break;
@@ -751,7 +635,7 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             break;
         }
         case LD_HLmem_D: {
-            loadRegToMemory(memory, HL, D);
+            memory.writeByte(HL, D);
             cycles = opcycles[opcode];
             break;
         }
@@ -799,14 +683,13 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             break;
         }
         case LD_Cmem_A: {
-            Word cMemPadded = 0xFF00 + C;
-            loadRegToMemory(memory, cMemPadded, A);
+            memory.writeByte(0xFF00 + C, A); // pad C to get range btw 0xFF00 - 0xFFFF
             cycles = opcycles[opcode];
             break;
         }
         case LD_A_Cmem: {
             Word cMemAddress = 0xFF00 + C; // only the lower half of the address is provided, opcode always between 0xFF00 - 0xFFFF
-            loadRegFromMemory(memory, cMemAddress, A);
+            A = memory.readByte(cMemAddress);
             cycles = opcycles[opcode];
             break;
         }
@@ -848,7 +731,7 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             break;
         }
         case LD_HLmem_E: {
-            loadRegToMemory(memory, HL, E);
+            memory.writeByte(HL, E);
             cycles = opcycles[opcode];
             break;
         }
@@ -902,9 +785,9 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
         }
         case INC_HLmem: {
             // load byte from memory, increment it, then store it back
-            Byte value = readByte(memory, HL);
+            Byte value = memory.readByte(HL);
             value = incByte(value);
-            loadRegToMemory(memory, HL, value);
+            memory.writeByte(HL, value);
             cycles = opcycles[opcode];
             break;
         }
@@ -923,7 +806,7 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             break;
         }
         case LD_HLmem_H: {
-            loadRegToMemory(memory, HL, H);
+            memory.writeByte(HL, H);
             cycles = opcycles[opcode];
             break;
         }
@@ -990,9 +873,9 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
         }
         case DEC_HLmem: {
             // load byte from memory, decrement it, then store it back
-            Byte value = readByte(memory, HL);
+            Byte value = memory.readByte(HL);
             value = decByte(value);
-            loadRegToMemory(memory, HL, value);
+            memory.writeByte(HL, value);
             cycles = opcycles[opcode];
             break;
         }
@@ -1012,7 +895,7 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             break;
         }
         case LD_HLmem_L: {
-            loadRegToMemory(memory, HL, L);
+            memory.writeByte(HL, L);
             cycles = opcycles[opcode];
             break;
         }
@@ -1078,22 +961,22 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
         }
         case LD_HLmem_d8: {
             Byte d8 = loadByte(memory);
-            loadRegToMemory(memory, HL, d8);
+            memory.writeByte(HL, d8);
             cycles = opcycles[opcode];
             break;
         }
         case LD_B_HLmem: {
-            loadRegFromMemory(memory, HL, B);
+            B = memory.readByte(HL);
             cycles = opcycles[opcode];
             break;
         }
         case LD_D_HLmem: {
-            loadRegFromMemory(memory, HL, D);
+            D = memory.readByte(HL);
             cycles = opcycles[opcode];
             break;
         }
         case LD_H_HLmem: {
-            loadRegFromMemory(memory, HL, H);
+            H = memory.readByte(HL);
             cycles = opcycles[opcode];
             break;
         }
@@ -1104,25 +987,25 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             break;
         }
         case ADD_A_HLmem: {
-            Byte value = readByte(memory, HL);
+            Byte value = memory.readByte(HL);
             addRegToReg(A, value);
             cycles = opcycles[opcode];
             break;
         }
         case SUB_HLmem: {
-            Byte value = readByte(memory, HL);
+            Byte value = memory.readByte(HL);
             subRegToReg(A, value);
             cycles = opcycles[opcode];
             break;
         }
         case AND_HLmem: {
-            Byte value = readByte(memory, HL);
+            Byte value = memory.readByte(HL);
             andRegToA(value);
             cycles = opcycles[opcode];
             break;
         }
         case OR_HLmem: {
-            Byte value = readByte(memory, HL);
+            Byte value = memory.readByte(HL);
             orRegToA(value);
             cycles = opcycles[opcode];
             break;
@@ -1191,7 +1074,7 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             break;
         }
         case LD_HLmem_A: {
-            loadRegToMemory(memory, HL, A);
+            memory.writeByte(HL, A);
             cycles = opcycles[opcode];
             break;
         }
@@ -1245,8 +1128,8 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             // printf("saving SP %04X to address %04X\n", SP, a16);
             Byte SP_low = SP & 0xFF;
             Byte SP_high = (SP >> 8) & 0xFF;
-            loadRegToMemory(memory, a16, SP_low);
-            loadRegToMemory(memory, a16 + 1, SP_high);
+            memory.writeByte(a16, SP_low);
+            memory.writeByte(a16 + 1, SP_high);
             cycles = opcycles[opcode];
             break;
         }
@@ -1438,23 +1321,23 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
 
         // xA opcodes
         case LD_A_BCmem: {
-            loadRegFromMemory(memory, BC, A);
+            A = memory.readByte(BC);
             cycles = opcycles[opcode];
             break;
         }
         case LD_A_DEmem: {
-            loadRegFromMemory(memory, DE, A);
+            A = memory.readByte(DE);
             cycles = opcycles[opcode];
             break;
         }
         case LD_A_HLi: {
-            loadRegFromMemory(memory, HL, A);
+            A = memory.readByte(HL);
             HL = incWord(HL);
             cycles = opcycles[opcode];
             break;
         }
         case LD_A_HLd: {
-            loadRegFromMemory(memory, HL, A);
+            A = memory.readByte(HL);
             HL = decWord(HL);
             cycles = opcycles[opcode];
             break;
@@ -1525,13 +1408,13 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
         }
         case LD_a16mem_A: {
             Word a16 = loadWord(memory);
-            loadRegToMemory(memory, a16, A);
+            memory.writeByte(a16, A);
             cycles = opcycles[opcode];
             break;
         }
         case LD_A_a16mem: {
             Word a16 = loadWord(memory);
-            loadRegFromMemory(memory, a16, A);
+            A = memory.readByte(a16);
             cycles = opcycles[opcode];
             break;
         }
@@ -1786,45 +1669,45 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
             break;
         }
         case LD_C_HLmem: {
-            loadRegFromMemory(memory, HL, C);
+            C = memory.readByte(HL);
             cycles = opcycles[opcode];
             break;
         }
         case LD_E_HLmem: {
-            loadRegFromMemory(memory, HL, E);
+            E = memory.readByte(HL);
             cycles = opcycles[opcode];
             break;
         }
         case LD_L_HLmem: {
-            loadRegFromMemory(memory, HL, L);
+            L = memory.readByte(HL);
             cycles = opcycles[opcode];
             break;
         }
         case LD_A_HLmem: {
-            loadRegFromMemory(memory, HL, A);
+            A = memory.readByte(HL);
             cycles = opcycles[opcode];
             break;
         }
         case ADC_A_HLmem: {
-            Byte value = readByte(memory, HL);
+            Byte value = memory.readByte(HL);
             ADC(value);
             cycles = opcycles[opcode];
             break;
         }
         case SBC_A_HLmem: {
-            Byte value = readByte(memory, HL);
+            Byte value = memory.readByte(HL);
             SBC(value);
             cycles = opcycles[opcode];
             break;
         }
         case XOR_HLmem: {
-            Byte value = readByte(memory, HL);
+            Byte value = memory.readByte(HL);
             xorRegToA(value);
             cycles = opcycles[opcode];
             break;
         }
         case CP_HLmem: {
-            Byte value = readByte(memory, HL);
+            Byte value = memory.readByte(HL);
             CP(value);
             cycles = opcycles[opcode];
             break;
@@ -1966,7 +1849,7 @@ uint Cpu::executeInstructions(Byte opcode, Mem &memory) {
         // }
 };
 
-uint Cpu::executeExtendedOpcode(Byte opcode, Mem &memory) {
+uint Cpu::executeExtendedOpcode(Byte opcode, Mmu &memory) {
     uint exCycles;
     switch (opcode) {
         // x0 extended opcodes
@@ -2463,82 +2346,114 @@ uint Cpu::executeExtendedOpcode(Byte opcode, Mem &memory) {
 
         // x6 extended opcodes
         case RLC_HLmem: {
-            rotateLeft(memory[HL], false);
+            Byte HLmem_value = memory.readByte(HL);
+            rotateLeft(HLmem_value, false);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case RL_HLmem: {
-            rotateLeft(memory[HL], true);
+            Byte HLmem_value = memory.readByte(HL);
+            rotateLeft(HLmem_value, true);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SLA_HLmem: {
-            shiftLeft(memory[HL]);
+            Byte HLmem_value = memory.readByte(HL);
+            shiftLeft(HLmem_value);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SWAP_HLmem: {
-            swapNibbles(memory[HL]);
+            Byte HLmem_value = memory.readByte(HL);
+            swapNibbles(HLmem_value);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case BIT_0_HLmem: {
-            bit(memory[HL], 0);
+            Byte HLmem_value = memory.readByte(HL);
+            bit(HLmem_value, 0);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case BIT_2_HLmem: {
-            bit(memory[HL], 2);
+            Byte HLmem_value = memory.readByte(HL);
+            bit(HLmem_value, 2);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case BIT_4_HLmem: {
-            bit(memory[HL], 4);
+            Byte HLmem_value = memory.readByte(HL);
+            bit(HLmem_value, 4);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case BIT_6_HLmem: {
-            bit(memory[HL], 6);
+            Byte HLmem_value = memory.readByte(HL);
+            bit(HLmem_value, 6);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case RES_0_HLmem: {
-            res(memory[HL], 0);
+            Byte HLmem_value = memory.readByte(HL);
+            res(HLmem_value, 0);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case RES_2_HLmem: {
-            res(memory[HL], 2);
+            Byte HLmem_value = memory.readByte(HL);
+            res(HLmem_value, 2);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case RES_4_HLmem: {
-            res(memory[HL], 4);
+            Byte HLmem_value = memory.readByte(HL);
+            res(HLmem_value, 4);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case RES_6_HLmem: {
-            res(memory[HL], 6);
+            Byte HLmem_value = memory.readByte(HL);
+            res(HLmem_value, 6);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SET_0_HLmem: {
-            set(memory[HL], 0);
+            Byte HLmem_value = memory.readByte(HL);
+            set(HLmem_value, 0);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SET_2_HLmem: {
-            set(memory[HL], 2);
+            Byte HLmem_value = memory.readByte(HL);
+            set(HLmem_value, 2);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SET_4_HLmem: {
-            set(memory[HL], 4);
+            Byte HLmem_value = memory.readByte(HL);
+            set(HLmem_value, 4);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SET_6_HLmem: {
-            set(memory[HL], 6);
+            Byte HLmem_value = memory.readByte(HL);
+            set(HLmem_value, 6);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
@@ -3119,82 +3034,114 @@ uint Cpu::executeExtendedOpcode(Byte opcode, Mem &memory) {
 
         // xE extended opcodes
         case RRC_HLmem: {
-            rotateRight(memory[HL], false);
+            Byte HLmem_value = memory.readByte(HL);
+            rotateRight(HLmem_value, false);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case RR_HLmem: {
-            rotateRight(memory[HL], true);
+            Byte HLmem_value = memory.readByte(HL);
+            rotateRight(HLmem_value, true);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SRA_HLmem: {
-            shiftRight(memory[HL], true);
+            Byte HLmem_value = memory.readByte(HL);
+            shiftRight(HLmem_value, true);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SRL_HLmem: {
-            shiftRight(memory[HL], false);
+            Byte HLmem_value = memory.readByte(HL);
+            shiftRight(HLmem_value, false);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case BIT_1_HLmem: {
-            bit(memory[HL], 1);
+            Byte HLmem_value = memory.readByte(HL);
+            bit(HLmem_value, 1);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case BIT_3_HLmem: {
-            bit(memory[HL], 3);
+            Byte HLmem_value = memory.readByte(HL);
+            bit(HLmem_value, 3);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case BIT_5_HLmem: {
-            bit(memory[HL], 5);
+            Byte HLmem_value = memory.readByte(HL);
+            bit(HLmem_value, 5);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case BIT_7_HLmem: {
-            bit(memory[HL], 7);
+            Byte HLmem_value = memory.readByte(HL);
+            bit(HLmem_value, 7);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case RES_1_HLmem: {
-            res(memory[HL], 1);
+            Byte HLmem_value = memory.readByte(HL);
+            res(HLmem_value, 1);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case RES_3_HLmem: {
-            res(memory[HL], 3);
+            Byte HLmem_value = memory.readByte(HL);
+            res(HLmem_value, 3);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case RES_5_HLmem: {
-            res(memory[HL], 5);
+            Byte HLmem_value = memory.readByte(HL);
+            res(HLmem_value, 5);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case RES_7_HLmem: {
-            res(memory[HL], 7);
+            Byte HLmem_value = memory.readByte(HL);
+            res(HLmem_value, 7);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SET_1_HLmem: {
-            set(memory[HL], 1);
+            Byte HLmem_value = memory.readByte(HL);
+            set(HLmem_value, 1);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SET_3_HLmem: {
-            set(memory[HL], 3);
+            Byte HLmem_value = memory.readByte(HL);
+            set(HLmem_value, 3);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SET_5_HLmem: {
-            set(memory[HL], 5);
+            Byte HLmem_value = memory.readByte(HL);
+            set(HLmem_value, 5);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }
         case SET_7_HLmem: {
-            set(memory[HL], 7);
+            Byte HLmem_value = memory.readByte(HL);
+            set(HLmem_value, 7);
+            memory.writeByte(HL, HLmem_value);
             exCycles = opcyclesExtended[opcode];
             break;
         }

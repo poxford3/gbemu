@@ -1,7 +1,6 @@
 #include "mmu.hpp"
 
 Mmu::Mmu() {
-    // initialize ioRegisters to 0
     std::fill(std::begin(romBank0), std::end(romBank0), 0);
     std::fill(std::begin(romBankN), std::end(romBankN), 0);
     std::fill(std::begin(VRam), std::end(VRam), 0);
@@ -9,7 +8,7 @@ Mmu::Mmu() {
     std::fill(std::begin(workRamBankN), std::end(workRamBankN), 0);
     std::fill(std::begin(oam), std::end(oam), 0);
     std::fill(std::begin(HRam), std::end(HRam), 0);
-    interruptEnableRegister = 0;
+    ioRegisters[interruptEnableRegister - 0xFF00] = 0;
     std::fill(std::begin(ioRegisters), std::end(ioRegisters), 0);
 }
 
@@ -26,9 +25,7 @@ void Mmu::loadRom(const std::vector<Byte>& program) {
 }
 
 
-void Mmu::swapRomBank(Byte bank) {
-
-}
+void Mmu::swapRomBank(Byte bank) {}
 
 
 void Mmu::reset() {
@@ -125,6 +122,13 @@ void Mmu::writeByte(Word address, Byte value) {
 
 
 Byte Mmu::readByte(Word address) {
+    if (ioRegisters[0xFF02 - 0xFF00] == 0x81) {
+        char c = ioRegisters[0xFF01 - 0xFF00];
+        printf("%c", c);
+        fflush(stdout);
+        ioRegisters[0xFF02 - 0xFF00] = 0x00;
+    }
+
     if (address >= 0xFF00 && address <= 0xFF7F) {
         return ioRegisters[address - 0xFF00];
     } else if (address == 0xFFFF) {
@@ -143,6 +147,32 @@ Byte Mmu::readByte(Word address) {
         return oam[address - 0xFE00];
     } else if (address >= 0xFF80 && address <= 0xFFFE) {
         return HRam[address - 0xFF80];
+    } else {
+        // unmapped memory, return 0xFF
+        return 0xFF;
+    }
+}
+
+
+int8_t Mmu::readInt(Word address) {
+    if (address >= 0xFF00 && address <= 0xFF7F) {
+        return static_cast<int8_t>(ioRegisters[address - 0xFF00]);
+    } else if (address == 0xFFFF) {
+        return static_cast<int8_t>(interruptEnableRegister);
+    } else if (address >= 0x0000 && address <= 0x3FFF) {
+        return static_cast<int8_t>(romBank0[address]);
+    } else if (address >= 0x4000 && address <= 0x7FFF) {
+        return static_cast<int8_t>(romBankN[address - 0x4000]);
+    } else if (address >= 0x8000 && address <= 0x9FFF) {
+        return static_cast<int8_t>(VRam[address - 0x8000]);
+    } else if (address >= 0xC000 && address <= 0xCFFF) {
+        return static_cast<int8_t>(workRamBank0[address - 0xC000]);
+    } else if (address >= 0xD000 && address <= 0xDFFF) {
+        return static_cast<int8_t>(workRamBankN[address - 0xD000]);
+    } else if (address >= 0xFE00 && address <= 0xFE9F) {
+        return static_cast<int8_t>(oam[address - 0xFE00]);
+    } else if (address >= 0xFF80 && address <= 0xFFFE) {
+        return static_cast<int8_t>(HRam[address - 0xFF80]);
     } else {
         // unmapped memory, return 0xFF
         return 0xFF;

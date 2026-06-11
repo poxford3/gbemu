@@ -30,7 +30,8 @@ find_package(Catch2 3 REQUIRED)
 # These tests can use the Catch2-provided main
 add_executable(tests 
     test/test.cpp
-    src/cpu.cpp)
+    src/cpu.cpp
+    src/mmu.cpp)
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 
 # nlohmann json package

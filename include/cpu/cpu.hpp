@@ -4,96 +4,11 @@
 #include <cstdint>
 #include <ctype.h>
 #include "utils/types.hpp"
+#include "mmu.hpp"
 
 
 #ifndef CPU_HPP
 #define CPU_HPP
-
-
-struct Mem {
-    // https://gbdev.io/pandocs/Memory_Map.html
-    static constexpr uint size = 1024 * 64; // 64KB of memory on DMG $0000-$FFFF
-    Byte Data[size];
-
-    void init() {
-        // Initialize memory to 0
-        for (uint i = 0; i < size; ++i) {
-            Data[i] = 0;
-        }
-    }
-
-    bool inCartRom0(Word address) {
-        if (address >= 0x0000 && address <= 0x3FFF) return true;
-        return false;
-    }
-
-    bool inCartRom1N(Word address) {
-        // todo, figure out rom switching
-        if (address >= 0x4000 && address <= 0x7FFF) return true;
-        return false;
-    }
-
-    bool inVRAM(Word address) {
-        if (address >= 0x8000 && address <= 0x9FFF) return true;
-        return false;
-    }
-
-    bool inExRAM(Word address) {
-        // external ram, if any
-        if (address >= 0xA000 && address <= 0xBFFF) return true;
-        return false;
-    }
-
-    bool inWorkRAM0(Word address) {
-        if (address >= 0xC000 && address <= 0xCFFF) return true;
-        return false;
-    }
-
-    bool inWorkRAM1(Word address) {
-        if (address >= 0xD000 && address <= 0xDFFF) return true;
-        return false;
-    }
-
-    bool inEchoRAM(Word address) {
-        // mirror of 0xC000 - DDFF, not to be used
-        if (address >= 0xE000 && address <= 0xFDFF) return true;
-        return false;
-    }
-
-    bool inOAM(Word address) {
-        if (address >= 0xFE00 && address <= 0xFE9F) return true;
-        return false;
-    }
-
-    bool inNotUsable(Word address) {
-        // not to be used
-        if (address >= 0xFEA0 && address <= 0xFEFF) return true;
-        return false;
-    }
-
-    bool inIORegisters(Word address) {
-        if (address >= 0xFF80 && address <= 0xFF7F) return true;
-        return false;
-    }
-
-    bool inHRAM(Word address) {
-        // High RAM
-        if (address >= 0xFF80 && address <= 0xFFFE) return true;
-        return false;
-    }
-
-    // read 1 byte
-    Byte operator[](uint address) const {
-        assert (address < size);
-        return Data[address];
-    }
-
-    // write 1 byte
-    Byte& operator[](uint address) {
-        assert (address < size);
-        return Data[address];
-    }
-};
 
 
 class Cpu {
@@ -142,32 +57,27 @@ class Cpu {
         Word HL; // HL = H << 8 | L
     };
 
-    void reset(Mem &memory);
-    void loadProgram(std::vector<Byte> program, uint numBytes, Mem &memory);
-    void runProgram(Mem &memory);
+    void reset();
     void updateFlags(Byte result, bool isSubtraction, bool halfCarry, bool carry);
-    Byte readByte(Mem &memory, Word address);
     Word incWord(Word value); // increment a 16-bit word, wrapping around at 0xFFFF
     Byte incByte(Byte value); // increase a Byte's value and update the flags around it
     Word decWord(Word value); // decrement a 16-bit word, wrapping around at 0x0000
     Byte decByte(Byte value); // decrease a Byte's value and update the flags around it
     void jp(Word address);
     void jr(int8_t offset);
-    void call(Word address, Mem &memory);
-    void handleInterrupt(Mem &memory);
-    void _RET(Mem &memory);
+    void call(Word address, Mmu &memory);
+    void handleInterrupt(Mmu &memory);
+    void _RET(Mmu &memory);
     void _EI();
     void _DI();
 
     // load operations
-    Word loadWord(Mem &memory);
-    Byte loadByte(Mem &memory);
-    int8_t loadInt(Mem &memory);
+    Word loadWord(Mmu &memory);
+    Byte loadByte(Mmu &memory);
+    int8_t loadInt(Mmu &memory);
     void loadRegToReg(Byte &dest, Byte &src);
     void loadRegToReg(Word &dest, Word &src);
-    void loadRegToMemory(Mem &memory, Word address, Byte &reg);
-    void loadRegFromMemory(Mem &memory, Word address, Byte &reg);
-    void RST(Word address, Mem &memory);
+    void RST(Word address, Mmu &memory);
 
     // logical operations
     void andRegToA(Byte &src);
@@ -194,11 +104,11 @@ class Cpu {
     void CP(Byte src); // essentially A - src, but only affects flags, does not store result
     void _DAA(Byte &A); // Decimal Adjust Accumulator
 
-    void popStackToReg(Word &reg, Mem &memory);
-    void pushRegToStack(Word reg, Mem &memory);
+    void popStackToReg(Word &reg, Mmu &memory);
+    void pushRegToStack(Word reg, Mmu &memory);
 
-    uint executeInstructions(Byte opcode, Mem &memory);
-    uint executeExtendedOpcode(Byte opcode, Mem &memory);
+    uint executeInstructions(Byte opcode, Mmu &memory);
+    uint executeExtendedOpcode(Byte opcode, Mmu &memory);
     void showAllRegisterValues();
     void TEST_showAllRegValuesDecimal();
 
