@@ -19,17 +19,16 @@ class Gameboy {
         void start();
         void stop();
         uint tick();
-        bool checksum();
-        void printMemory();
-        void testWithJson(std::string path);
-        void updateTimer(uint cycles);
+
+    private:
         Cpu cpu;
         Ppu ppu;
         Apu apu;
-        // Mmu mmu;
-
-    private:
-        // std::vector<Byte> program;
+        Mmu mmu;
+        bool checksum();
+        void printMemory();
+        void updateTimer(uint cycles);
+        void testWithJson(std::string path);
 
 };
 

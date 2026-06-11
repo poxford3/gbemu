@@ -15,6 +15,7 @@ Gameboy::Gameboy(const std::vector<Byte>& program) {
     uint numBytes = program.size();
     
     cpu.loadProgram(program, numBytes, memory);
+    mmu.loadRom(program);
 
     checksumPassed = checksum();
     // std::cout << (checksumPassed ? "checksum passed" : "checksum failed") << std::endl;
@@ -22,6 +23,7 @@ Gameboy::Gameboy(const std::vector<Byte>& program) {
 
 void Gameboy::start() {
     cpu.reset(memory);
+    mmu.reset();
 };
 
 void Gameboy::stop() {
