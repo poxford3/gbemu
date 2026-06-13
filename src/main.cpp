@@ -10,15 +10,18 @@
 int main() {
 
     std::string path = "/Users/poxford3/Downloads/cpu_instrs/individual/02-interrupts.gb";
+    // std::string path = "/Users/poxford3/Downloads/cpu_instrs/individual/03-op sp,hl.gb";
     // std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/small_rom.gb";
     FileHandler fileH(path);
     Gameboy gameboy (fileH.readFile());
 
+    // just for testing cpu/mmu
     if (gameboy.checksumPassed) {
-        while (1) {
+        uint cycles = 1;
+        while (cycles >= 0) {
             uint frameCycles = 0;
                 while (frameCycles < 70224) { // 70224 = 154 * 456 (154 scanlines, 456 "dots"/cycles per scanline)
-                    uint cycles = gameboy.tick();
+                    cycles = gameboy.tick();
                     frameCycles += cycles;
                 }
             // gameboy.tick();

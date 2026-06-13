@@ -122,7 +122,7 @@ void Cpu::handleInterrupt(Mmu &memory) {
 
     for (int i = 0; i < 5; i++) {
         if (pending & (1 << i)) {
-            // printf("handling interrupt %d, PC=%04X IME=%d\n", i, PC, IME);
+            printf("handling interrupt %d, PC=0x%04X IME=%d\n", i, PC, IME);
             memory.writeByte(Mmu::IF, memory.readByte(Mmu::IF) & ~(1 << i)); // reset the interrupt request bit for this interrupt
             pushRegToStack(PC, memory);
 
@@ -172,7 +172,7 @@ Byte Cpu::loadByte(Mmu &memory) {
 
 int8_t Cpu::loadInt(Mmu &memory) {
     int8_t value = memory.readInt(PC);
-    // printf("PC: %20X, IE: %20X\n", PC, memory.interruptEnableRegister);
+    // printf("PC: 0x%20X, IE: %20X\n", PC, memory.interruptEnableRegister);
     PC++;
     return value;
 }
@@ -412,6 +412,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
         case STOP: {
             // TODO, will be clock related
             // std::cout << "Executed STOP" << std::endl;
+            memory.interruptEnableRegister = 0; 
             cycles = opcycles[opcode];
             break;
         }
@@ -982,7 +983,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
         }
         case HALT: {
             halted = true;
-            paused = true;
+            // paused = true;
             cycles = opcycles[opcode];
             break;
         }
@@ -1304,7 +1305,8 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
         }
         case RETI: {
             _RET(memory);
-            _EI();
+            // _EI();
+            IME = true; // IME set immediately after RETI
             cycles = opcycles[opcode];
             break;
         }

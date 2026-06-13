@@ -1,3 +1,4 @@
+#include <string>
 #include "utils/types.hpp"
 #include "utils/file.hpp"
 
@@ -7,6 +8,8 @@
 class Mmu {
     public:
         Mmu();
+
+        std::string title;
 
         Byte romBank0[0x4000]; // first 16KB of cart, start 0x0000
         Byte romBankN[0x4000]; // switchable 16KB bank, start 0x4000
@@ -85,7 +88,17 @@ class Mmu {
         int8_t readInt(Word address);  
         
     private:
-        
+        // https://gbdev.io/pandocs/The_Cartridge_Header.html#0147--cartridge-type
+        Byte MBCType = 0; // type of memory bank controller, value found at 0x147 in ROM header
+
+        Byte entireRom[0x18000]; // max ROM size is 2MB, allocating that
+        Byte currentRomBank = 1;
+        Byte ROMSize = 0; // 0x148 in ROM header
+
+        Byte externalRam[0x8000]; // max size of external RAM is 32KB, so allocating plenty. Most use less
+        Byte currentRamBank = 0;
+        Byte RAMSize = 0; // 0x149 in ROM header
+
 };
 
 #endif // MMU_HPP

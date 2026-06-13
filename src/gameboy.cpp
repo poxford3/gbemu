@@ -10,13 +10,8 @@ Gameboy::Gameboy() {
 
 Gameboy::Gameboy(const std::vector<Byte>& program) {
     start();
-
-    // std::cout << "num bytes of prog: " << program.size() << std::endl;
-    
     mmu.loadRom(program);
-
     checksumPassed = checksum();
-    // std::cout << (checksumPassed ? "checksum passed" : "checksum failed") << std::endl;
 }
 
 void Gameboy::start() {
@@ -31,24 +26,27 @@ void Gameboy::stop() {
 uint Gameboy::tick() {
 
     if (!cpu.paused) {
+
         if (cpu.pendingIME) {
             cpu.IME = true;
             cpu.pendingIME = false;
         }
 
-        cpu.handleInterrupt(mmu);
         
         if (cpu.halted) {
-            if (mmu.readByte(mmu.interruptEnableRegister) & mmu.readByte(mmu.IF)) {
-                cpu.halted = false;
+            if (mmu.interruptEnableRegister & mmu.readByte(mmu.IF)) {
+                    cpu.halted = false;
+                } else {
+                updateTimer(4); // 4 cycles pass every tick while halted
+                return 4;
             }
-            return 1;
         }
-        
+
         uint cycles;
         Byte opcode = cpu.loadByte(mmu);
         cycles = cpu.executeInstructions(opcode, mmu);
         updateTimer(cycles);
+        cpu.handleInterrupt(mmu);
 
         return cycles;
     }
@@ -56,10 +54,12 @@ uint Gameboy::tick() {
 }
 
 void Gameboy::updateTimer(uint cycles) {
+    // research this functionality
     divCycles += cycles;
     if (divCycles >= 256) {
-        divCycles -= 256;
-        mmu.writeByte(mmu.DIV, mmu.readByte(mmu.DIV) + 1);
+        divCycles = 0;
+        // mmu.writeByte(mmu.DIV, mmu.readByte(mmu.DIV) + 1);
+        mmu.ioRegisters[mmu.DIV - 0xFF00]++; // cannot directly write to DIV but must still increment
     }
 
     if ((mmu.readByte(mmu.TAC) >> 2) & 1) {

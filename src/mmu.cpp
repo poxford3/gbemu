@@ -22,10 +22,30 @@ void Mmu::loadRom(const std::vector<Byte>& program) {
             romBankN[i - 0x4000] = program[i];
         }
     }
+
+    memcpy(title.data(), program.data() + 0x134, 16); // set the title, which comes from 0x134 to 0x143 in ROM header
+    printf("title %s\n", title.c_str());
+
+    std::copy(program.begin(), program.end(), entireRom);
+    MBCType = program[0x147];
+    ROMSize = 0x4000 * (1 << program[0x148]);
+    RAMSize = (program[0x149] == 0) ? 0 : (1 << (program[0x149] - 1)) * 0x2000; // todo verify this
 }
 
 
-void Mmu::swapRomBank(Byte bank) {}
+void Mmu::swapRomBank(Byte bank) {
+    // https://gbdev.io/pandocs/MBCs.html#mbc-unmapped-ram-bank-access
+    // https://gbdev.io/pandocs/The_Cartridge_Header.html?highlight=%240148#0147--cartridge-type
+    switch (MBCType) {
+        case 0x01: 
+        case 0x02: 
+        case 0x03: // MBC1
+            if (bank == 0) {
+                bank = 1;
+            }
+            break;
+    }
+}
 
 
 void Mmu::reset() {
@@ -36,6 +56,7 @@ void Mmu::reset() {
     std::fill(std::begin(workRamBankN), std::end(workRamBankN), 0);
     std::fill(std::begin(oam), std::end(oam), 0);
     std::fill(std::begin(HRam), std::end(HRam), 0);
+    currentRomBank = 1;
     interruptEnableRegister = 0x00;
     ioRegisters[P1 - 0xFF00] = 0xCF;
     ioRegisters[SB - 0xFF00] = 0x0;
@@ -112,7 +133,11 @@ void Mmu::writeByte(Word address, Byte value) {
     } else if (address >= 0xFF80 && address <= 0xFFFE) {
         HRam[address - 0xFF80] = value;
     } else if (address >= 0xFF00 && address <= 0xFF7F) {
-        ioRegisters[address - 0xFF00] = value;
+        if (address == DIV) {
+            ioRegisters[address - 0xFF00] = 0; // writes to DIV (0xFF04) always result in 0
+        } else {
+            ioRegisters[address - 0xFF00] = value;
+        }
     } else if (address == 0xFFFF) {
         interruptEnableRegister = value; 
     } else {
@@ -137,14 +162,21 @@ Byte Mmu::readByte(Word address) {
         return romBank0[address];
     } else if (address >= 0x4000 && address <= 0x7FFF) {
         return romBankN[address - 0x4000];
+    } else if (address >= 0xA000 && address <= 0xBFFF) {
+        return externalRam[address - 0xA000];
     } else if (address >= 0x8000 && address <= 0x9FFF) {
         return VRam[address - 0x8000];
     } else if (address >= 0xC000 && address <= 0xCFFF) {
         return workRamBank0[address - 0xC000];
     } else if (address >= 0xD000 && address <= 0xDFFF) {
         return workRamBankN[address - 0xD000];
+    } else if (address >= 0xE000 && address <= 0xFDFF) {
+        return workRamBank0[address - 0xE000]; // echo, shouldn't be used but mirrors work RAM bank 0
     } else if (address >= 0xFE00 && address <= 0xFE9F) {
         return oam[address - 0xFE00];
+    } else if (address >= 0xFEA0 && address <= 0xFEFF) {
+        std::cerr << "Warning: attempting to access prohibited section of memory at address 0x" << std::hex << address << std::dec << std::endl;
+        return 0xFF;
     } else if (address >= 0xFF80 && address <= 0xFFFE) {
         return HRam[address - 0xFF80];
     } else {

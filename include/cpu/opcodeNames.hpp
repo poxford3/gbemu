@@ -2,6 +2,7 @@
 #include <string>
 #include "utils/types.hpp"
 
+// used in debugging to get the name of an opcode given it's code
 std::unordered_map<Byte, std::string> opcodeNames = {
     {0x00, "NOP"},
     {0x10, "STOP"},
