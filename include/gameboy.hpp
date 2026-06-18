@@ -17,13 +17,14 @@ class Gameboy {
         Gameboy(const std::vector<Byte>& program);
         void start();
         void stop();
-        uint tick();
-
+        void run();
+        uint tickCpu();
+        
     private:
         Cpu cpu;
+        Mmu mmu;
         Ppu ppu;
         Apu apu;
-        Mmu mmu;
         bool checksum();
         void printMemory();
         void updateTimer(uint cycles);

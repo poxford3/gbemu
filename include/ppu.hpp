@@ -14,7 +14,7 @@
 
 class Ppu {
     public:
-        static const uint winScale = 3;
+        static const uint winScale = 3; // used to change the size of the gameboy screen
         SDL_Window* window;
         SDL_Renderer* renderer;
         SDL_Texture* gbTexture;
@@ -22,17 +22,21 @@ class Ppu {
         Palette palette;
         
         bool running;
+        uint scanlineCounter;
         
         Ppu();
         void init();
         void run();
         void close();
         SDL_Renderer* GetRenderer();
-        void displayMemory(Mmu &memory);
+        void displayMemory(Cpu &cpu, Mmu &memory);
         void drawText(const std::string& text, int x, int y);
-        void drawFrame(Cpu cpu, Mmu memory);
+        void LCDStatus(Mmu &memory);
+        void loadScanline(Cpu &cpu, Mmu &memory);
+        void drawFrame(Cpu &cpu, Mmu &memory);
         FileHandler getFileFromUser();
     private:
+        bool DEBUG = true;
         static const uint GAMEBOY_HEIGHT = 144;
         static const uint GAMEBOY_WIDTH = 160;
         static const uint MEMORY_SECTION_WIDTH = 400;

@@ -122,7 +122,7 @@ void Cpu::handleInterrupt(Mmu &memory) {
 
     for (int i = 0; i < 5; i++) {
         if (pending & (1 << i)) {
-            printf("handling interrupt %d, PC=0x%04X IME=%d\n", i, PC, IME);
+            // printf("handling interrupt %d, PC=0x%04X IME=%d\n", i, PC, IME);
             memory.writeByte(Mmu::IF, memory.readByte(Mmu::IF) & ~(1 << i)); // reset the interrupt request bit for this interrupt
             pushRegToStack(PC, memory);
 

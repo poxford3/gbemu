@@ -17,13 +17,44 @@ Gameboy::Gameboy(const std::vector<Byte>& program) {
 void Gameboy::start() {
     cpu.reset();
     mmu.reset();
+    ppu.init();
 };
+
 
 void Gameboy::stop() {
     // todo
 }
 
-uint Gameboy::tick() {
+
+void Gameboy::run() {
+    while (ppu.running) {
+        // while (frameCycles < 70224) { // 70224 = 154 * 456 (154 scanlines, 456 "dots"/cycles per scanline)
+        ppu.scanlineCounter = 0;
+        while (ppu.scanlineCounter < 154) { // 154 scanlines, 144 visible, last 10 for vblank
+            // printf("loading scanline %d\n", scanline);
+            uint dotCycles = 0;
+            while (dotCycles < 456) { // 456 (456 "dots"/cycles per scanline)
+                uint cycles = tickCpu();
+                dotCycles += cycles;
+            }
+            if (ppu.scanlineCounter == 144) {
+                // request vblank interrupt
+                mmu.writeByte(mmu.IF, mmu.readByte(mmu.IF) | 0x01); // set bit 0 of IF to request vblank interrupt
+            }
+            if (ppu.scanlineCounter < 144) {
+                ppu.loadScanline(cpu, mmu);
+            }
+            mmu.writeByte(mmu.LY, ppu.scanlineCounter);
+            ppu.scanlineCounter++;
+        }
+        ppu.drawFrame(cpu, mmu);
+        // SDL_Delay(16); // 16 ms = 60 fps (1/60)
+        SDL_Delay(100); // TODO remove this after testing
+    }
+}
+
+
+uint Gameboy::tickCpu() {
 
     if (!cpu.paused) {
 
@@ -32,7 +63,6 @@ uint Gameboy::tick() {
             cpu.pendingIME = false;
         }
 
-        
         if (cpu.halted) {
             if (mmu.interruptEnableRegister & mmu.readByte(mmu.IF)) {
                     cpu.halted = false;
@@ -42,9 +72,8 @@ uint Gameboy::tick() {
             }
         }
 
-        uint cycles;
         Byte opcode = cpu.loadByte(mmu);
-        cycles = cpu.executeInstructions(opcode, mmu);
+        uint cycles = cpu.executeInstructions(opcode, mmu);
         updateTimer(cycles);
         cpu.handleInterrupt(mmu);
 
@@ -52,6 +81,7 @@ uint Gameboy::tick() {
     }
     return -1;
 }
+
 
 void Gameboy::updateTimer(uint cycles) {
     // research this functionality
@@ -90,6 +120,7 @@ void Gameboy::updateTimer(uint cycles) {
     }
 }
 
+
 bool Gameboy::checksum() {
     // https://gbdev.io/pandocs/The_Cartridge_Header.html?highlight=checksum#014d--header-checksum
     Byte checksum = 0;
@@ -99,6 +130,7 @@ bool Gameboy::checksum() {
     // if the memory address at 0x014D matches bottom 8 bits of checksum, header passes
     return mmu.readByte(0x014D) == (checksum & 0xFF) ? true : false;
 }
+
 
 void Gameboy::printMemory() {
     // bricks script, JUST for testing
@@ -184,7 +216,7 @@ void Gameboy::testWithJson(std::string path) {
         // std::cout << "finished testing :D, " << failCount << ", " << opcodePrint << " (" << name.substr(0, 2) << ")" << std::endl;
         std::cout << "finished testing :D, " << opcodeTestData[0]["name"] << ", " << failCount << std::endl;
     } else {
-        std::cout << "error opening file" << std::endl;
+        std::cout << "error opening file, json" << std::endl;
     }
 
 }
