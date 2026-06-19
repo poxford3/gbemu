@@ -95,6 +95,8 @@ void Ppu::drawText(const std::string& text, int x, int y) {
 }
 
 
+
+
 void Ppu::LCDStatus(Mmu &memory) {
     Byte lcdStat = memory.readByte(Mmu::STAT);
     if (!(memory.readByte(Mmu::LCDC) >> 7)) { // if the 7th bit of LCDC (LCD Enable) if false
@@ -115,7 +117,7 @@ void Ppu::LCDStatus(Mmu &memory) {
         }
     }
 
-    switch ((lcdStat >> 2) & 7) { // get bits 3, 4, 5 from STAT, select mode for STAT interrupt 
+    switch ((lcdStat >> 2) & 0b111) { // get bits 3, 4, 5 from STAT, select mode for STAT interrupt 
         case 4: { // 100 Mode 2
             break;
         }
@@ -129,21 +131,68 @@ void Ppu::LCDStatus(Mmu &memory) {
 }
 
 
-void Ppu::loadScanline(Cpu &cpu, Mmu &memory) {
-    if (scanlineCounter < 0 || scanlineCounter >= GAMEBOY_HEIGHT) {
-        printf("loadScanline out of bounds: %d\n", scanlineCounter);
+void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
+    if (currentLine < 0 || currentLine >= GAMEBOY_HEIGHT) {
+        printf("loadScanline out of bounds: %d\n", currentLine);
         return;
     }
+
+    // Byte currentPalette = memory.readByte(Mmu::BGP);
+    // Byte pal00 = currentPalette & 0b00000011;
+    // Byte pal01 = (currentPalette & 0b00001100) >> 2;
+    // Byte pal10 = (currentPalette & 0b00110000) >> 4;
+    // Byte pal11 = (currentPalette & 0b11000000) >> 6;
+
+    // Byte tileMapStart = (((memory.readByte(Mmu::LCDC) >> 3) & 1) == 1) ? 0x9c00 : 0x9800;
+    // Byte tileDataStart = (((memory.readByte(Mmu::LCDC) >> 4) & 1) == 1) ? 0x8000 : 0x8800;
+
+    // for (int i = 0; i < 128; i++) { // tile map sections are 128 bytes long
+    //     Byte lo = memory.readByte(tileDataStart + i);
+    //     Byte hi = memory.readByte(tileDataStart + i + 1);
+
+    // }
+
     for (int x = 0; x < GAMEBOY_WIDTH; x++) {
-        uint index = (scanlineCounter * GAMEBOY_WIDTH + x) * 3; 
-        if (x % 2 == 0 && scanlineCounter % 2 == 0) {
+        uint index = (currentLine * GAMEBOY_WIDTH + x) * 3; 
+        if (x % 2 == 0 && currentLine % 2 == 0) {
             frameBuffer[index + 0] = 0xFF; // r
-            frameBuffer[index + 1] = 0xFF; // g
-            frameBuffer[index + 2] = 0xFF; // b white
+            frameBuffer[index + 1] = 0x00; // g
+            frameBuffer[index + 2] = 0xFF; // b purple
         } else {
             frameBuffer[index + 0] = 0x00; // r
             frameBuffer[index + 1] = 0x00; // g
             frameBuffer[index + 2] = 0x00; // b black
+        }
+    }
+}
+
+void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
+    
+    // LCDStatus(memory);
+
+    bool isLcdEnabled = memory.readByte(Mmu::LCDC) >> 7;
+    if (isLcdEnabled) {
+        scanlineCounter -= cycles;
+    } else {
+        return;
+    }
+
+    if (scanlineCounter <= 0) {
+        memory.writeByte(Mmu::LY, memory.readByte(Mmu::LY) + 1);
+        Byte currentLine = memory.readByte(Mmu::LY);
+
+        scanlineCounter = 456;
+
+        if (currentLine == 144) {
+            // set bit 0 of IF to request vblank interrupt
+            memory.writeByte(memory.IF, memory.readByte(memory.IF) | 0x01);
+            drawFrame(cpu, memory);
+            // SDL_Delay(16); // 16 ms = 60 fps (1/60)
+            SDL_Delay(1000);
+        } else if (currentLine > 153) {
+            memory.writeByte(Mmu::LY, 0);
+        } else if (currentLine < 144) {
+            loadScanline(memory, currentLine);
         }
     }
 }

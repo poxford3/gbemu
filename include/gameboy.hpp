@@ -18,16 +18,20 @@ class Gameboy {
         void start();
         void stop();
         void run();
-        uint tickCpu();
         
     private:
         Cpu cpu;
         Mmu mmu;
         Ppu ppu;
         Apu apu;
+
+        uint tickCpu();
+        void updateGraphics(uint cycles);
+        void updateTimer(uint cycles);
+        void handleInterrupts();
+
         bool checksum();
         void printMemory();
-        void updateTimer(uint cycles);
         void testWithJson(std::string path);
 
 };

@@ -28,28 +28,10 @@ void Gameboy::stop() {
 
 void Gameboy::run() {
     while (ppu.running) {
-        // while (frameCycles < 70224) { // 70224 = 154 * 456 (154 scanlines, 456 "dots"/cycles per scanline)
-        ppu.scanlineCounter = 0;
-        while (ppu.scanlineCounter < 154) { // 154 scanlines, 144 visible, last 10 for vblank
-            // printf("loading scanline %d\n", scanline);
-            uint dotCycles = 0;
-            while (dotCycles < 456) { // 456 (456 "dots"/cycles per scanline)
-                uint cycles = tickCpu();
-                dotCycles += cycles;
-            }
-            if (ppu.scanlineCounter == 144) {
-                // request vblank interrupt
-                mmu.writeByte(mmu.IF, mmu.readByte(mmu.IF) | 0x01); // set bit 0 of IF to request vblank interrupt
-            }
-            if (ppu.scanlineCounter < 144) {
-                ppu.loadScanline(cpu, mmu);
-            }
-            mmu.writeByte(mmu.LY, ppu.scanlineCounter);
-            ppu.scanlineCounter++;
-        }
-        ppu.drawFrame(cpu, mmu);
-        // SDL_Delay(16); // 16 ms = 60 fps (1/60)
-        SDL_Delay(100); // TODO remove this after testing
+        uint cycles = tickCpu();
+        updateTimer(cycles);
+        updateGraphics(cycles);
+        handleInterrupts();
     }
 }
 
@@ -67,16 +49,13 @@ uint Gameboy::tickCpu() {
             if (mmu.interruptEnableRegister & mmu.readByte(mmu.IF)) {
                     cpu.halted = false;
                 } else {
-                updateTimer(4); // 4 cycles pass every tick while halted
-                return 4;
+                    return 4;
             }
         }
 
         Byte opcode = cpu.loadByte(mmu);
+        printf("opcode %20X, PC %20X\n", opcode, cpu.PC);
         uint cycles = cpu.executeInstructions(opcode, mmu);
-        updateTimer(cycles);
-        cpu.handleInterrupt(mmu);
-
         return cycles;
     }
     return -1;
@@ -88,7 +67,6 @@ void Gameboy::updateTimer(uint cycles) {
     divCycles += cycles;
     if (divCycles >= 256) {
         divCycles = 0;
-        // mmu.writeByte(mmu.DIV, mmu.readByte(mmu.DIV) + 1);
         mmu.ioRegisters[mmu.DIV - 0xFF00]++; // cannot directly write to DIV but must still increment
     }
 
@@ -116,6 +94,40 @@ void Gameboy::updateTimer(uint cycles) {
                 mmu.writeByte(mmu.TIMA, mmu.readByte(mmu.TMA));
             }
             timaCycles -= (4194304 / freq);
+        }
+    }
+}
+
+void Gameboy::updateGraphics(uint cycles) {
+    ppu.updateGraphics(cpu, mmu, cycles);
+}
+
+void Gameboy::handleInterrupts() {
+    Byte pending = mmu.interruptEnableRegister & mmu.readByte(Mmu::IF);
+    if (pending == 0) return;
+    
+    cpu.halted = false;
+    if (!cpu.IME) {
+        // printf("interrupt pending but IME=0, IE=%02X IF=%02X\n", memory.interruptEnableRegister, memory.ioRegisters[Mmu::IF]);
+        return;
+    } // if the master interrupt says there are no interrupts, then we just move on
+    cpu.IME = false;
+
+    for (int i = 0; i < 5; i++) {
+        if (pending & (1 << i)) {
+            // printf("handling interrupt %d, PC=0x%04X IME=%d\n", i, PC, IME);
+            mmu.writeByte(Mmu::IF, mmu.readByte(Mmu::IF) & ~(1 << i)); // reset the interrupt request bit for this interrupt
+            cpu.pushRegToStack(cpu.PC, mmu);
+
+            switch (i) {
+                case 0: cpu.PC = 0x0040; break; // VBlank
+                case 1: cpu.PC = 0x0048; break; // LCD
+                case 2: cpu.PC = 0x0050; break; // Timer
+                case 3: cpu.PC = 0x0058; break; // Serial
+                case 4: cpu.PC = 0x0060; break; // Joypad
+            }
+            // cycles -= 20; // implemented once the clock is done
+            return;
         }
     }
 }

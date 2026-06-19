@@ -22,21 +22,24 @@ class Ppu {
         Palette palette;
         
         bool running;
-        uint scanlineCounter;
+        int scanlineCounter;
         
         Ppu();
         void init();
         void run();
         void close();
         SDL_Renderer* GetRenderer();
+        // module rendering
         void displayMemory(Cpu &cpu, Mmu &memory);
         void drawText(const std::string& text, int x, int y);
+        // gameboy rendering
+        void loadScanline( Mmu &memory, Byte currentLine);
         void LCDStatus(Mmu &memory);
-        void loadScanline(Cpu &cpu, Mmu &memory);
+        void updateGraphics(Cpu &cpu, Mmu &memory, uint cycles);
         void drawFrame(Cpu &cpu, Mmu &memory);
         FileHandler getFileFromUser();
     private:
-        bool DEBUG = true;
+        bool DEBUG = true; // used to change between view with(out) registers and memory
         static const uint GAMEBOY_HEIGHT = 144;
         static const uint GAMEBOY_WIDTH = 160;
         static const uint MEMORY_SECTION_WIDTH = 400;
