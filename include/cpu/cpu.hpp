@@ -66,7 +66,6 @@ class Cpu {
     void jp(Word address);
     void jr(int8_t offset);
     void call(Word address, Mmu &memory);
-    // void handleInterrupt(Mmu &memory);
     void _RET(Mmu &memory);
     void _EI();
     void _DI();

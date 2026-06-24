@@ -108,36 +108,6 @@ void Cpu::call(Word address, Mmu &memory) {
     PC = address;
 }
 
-// void Cpu::handleInterrupt(Mmu &memory) {
-       
-//     Byte pending = memory.interruptEnableRegister & memory.readByte(Mmu::IF);
-//     if (pending == 0) return;
-    
-//     halted = false;
-//     if (!IME) {
-//         // printf("interrupt pending but IME=0, IE=%02X IF=%02X\n", memory.interruptEnableRegister, memory.ioRegisters[Mmu::IF]);
-//         return;
-//     } // if the master interrupt says there are no interrupts, then we just move on
-//     IME = false;
-
-//     for (int i = 0; i < 5; i++) {
-//         if (pending & (1 << i)) {
-//             // printf("handling interrupt %d, PC=0x%04X IME=%d\n", i, PC, IME);
-//             memory.writeByte(Mmu::IF, memory.readByte(Mmu::IF) & ~(1 << i)); // reset the interrupt request bit for this interrupt
-//             pushRegToStack(PC, memory);
-
-//             switch (i) {
-//                 case 0: PC = 0x0040; break; // VBlank
-//                 case 1: PC = 0x0048; break; // LCD
-//                 case 2: PC = 0x0050; break; // Timer
-//                 case 3: PC = 0x0058; break; // Serial
-//                 case 4: PC = 0x0060; break; // Joypad
-//             }
-//             // cycles -= 20; // implemented once the clock is done
-//             return;
-//         }
-//     }
-// }
 
 void Cpu::_RET(Mmu &memory) {
     // Pop return address from stack and jump to it
@@ -172,7 +142,7 @@ Byte Cpu::loadByte(Mmu &memory) {
 
 int8_t Cpu::loadInt(Mmu &memory) {
     int8_t value = memory.readInt(PC);
-    // printf("PC: 0x%20X, IE: %20X\n", PC, memory.interruptEnableRegister);
+    // printf("PC: 0x%02X, IE: %02X\n", PC, memory.interruptEnableRegister);
     PC++;
     return value;
 }

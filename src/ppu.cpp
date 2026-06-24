@@ -1,6 +1,7 @@
 #include <nfd.h>
-#include "gameboy.hpp"
 #include "ppu.hpp"
+#include "gameboy.hpp"
+#include "utils/bit.hpp"
 
 Ppu::Ppu() {
     window = nullptr;
@@ -95,38 +96,72 @@ void Ppu::drawText(const std::string& text, int x, int y) {
 }
 
 
-
-
 void Ppu::LCDStatus(Mmu &memory) {
     Byte lcdStat = memory.readByte(Mmu::STAT);
-    if (!(memory.readByte(Mmu::LCDC) >> 7)) { // if the 7th bit of LCDC (LCD Enable) if false
+    Byte lcdc = memory.readByte(Mmu::LCDC);
+    if (!(getBit(lcdc, 7))) { // if the 7th bit of LCDC (LCD Enable) if false
         scanlineCounter = 456;
-    }
-    switch (lcdStat & 0b11) { // get last 2 bits
-        case 0: { // 00 HBlank
-            break;
-        }
-        case 1: { // 01 VBlank
-            break;
-        }
-        case 2: { // 10 Searching Sprite Atts
-            break;
-        }
-        case 3: { // 11 Transfering Data to LCD Driver
-            break;
-        }
+        memory.writeByte(Mmu::LY, 0);
+        lcdStat &= 252;
+        setBit(lcdStat, 0);
+        memory.writeByte(Mmu::STAT, lcdStat);
+        return;
     }
 
-    switch ((lcdStat >> 2) & 0b111) { // get bits 3, 4, 5 from STAT, select mode for STAT interrupt 
-        case 4: { // 100 Mode 2
-            break;
+    Byte currentLine = memory.readByte(Mmu::LY);
+    Byte currentMode = lcdStat & 0x3;
+
+    Byte mode = 0;
+    bool intReq = false;
+
+    if (currentLine >= 144) {
+        mode = 1;
+        lcdStat = setBit(lcdStat, 0); // set the 0th bit to 1
+        lcdStat = resetBit(lcdStat, 1); // set the 1th bit to 0
+        intReq = getBit(lcdStat, 4); // interrupt request equal to 4th bit of STAT
+    } else {
+        int mode2bounds = 456-80;
+        int mode3bounds = mode2bounds - 172;
+
+        // mode 2
+        if (scanlineCounter >= mode2bounds) {
+            mode = 2;
+            lcdStat = setBit(lcdStat, 1); // set the 1th bit to 1
+            lcdStat = resetBit(lcdStat, 0); // set the 0th bit to 0
+            intReq = getBit(lcdStat, 5); // interrupt request equal to 5th bit of STAT
+        } else if (scanlineCounter >= mode3bounds) {
+            // mode 3
+            mode = 3;
+            lcdStat = setBit(lcdStat, 0); // set the 0th bit to 1
+            lcdStat = setBit(lcdStat, 1); // set the 1th bit to 1
+        } else {
+            // mode 0
+            mode = 0;
+            lcdStat = resetBit(lcdStat, 0); // set the 0th bit to 0
+            lcdStat = resetBit(lcdStat, 1); // set the 1th bit to 0
+            intReq = getBit(lcdStat, 5); // interrupt request equal to 5th bit of STAT
         }
-        case 2: { // 010 Mode 1
-            break;
+        
+        // if new mode, interrupt flag set
+        if (intReq && (mode != currentMode)) {
+            Byte IFreg = memory.readByte(Mmu::IF);
+            IFreg = setBit(IFreg, 1); // set the 1th bit to 1
+            memory.writeByte(Mmu::IF, IFreg);
         }
-        case 1: { // 001 Mode 0
-            break;
+
+        Byte currLY = memory.readByte(Mmu::LY);
+        Byte currLYC = memory.readByte(Mmu::LYC);
+        if (currLY == currLYC) {
+            lcdStat = setBit(lcdStat, 6); // set the 6th bit to 1
+            if (getBit(lcdStat, 6)) { // check 6th bit of STAT
+                Byte IFreg = memory.readByte(Mmu::IF);
+                IFreg = setBit(IFreg, 1); // set the 1th bit to 1
+                memory.writeByte(Mmu::IF, IFreg);
+            } else {
+                lcdStat = resetBit(lcdStat, 2);  // set the 2th bit to 0
+            }
         }
+        memory.writeByte(Mmu::STAT, lcdStat);
     }
 }
 
@@ -142,11 +177,11 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
     // Byte pal01 = (currentPalette & 0b00001100) >> 2;
     // Byte pal10 = (currentPalette & 0b00110000) >> 4;
     // Byte pal11 = (currentPalette & 0b11000000) >> 6;
+    Byte lcdc = memory.readByte(Mmu::LCDC);
+    Word tileMapStart = (getBit(lcdc, 3) == 1) ? 0x9c00 : 0x9800;
+    Word tileDataStart = (getBit(lcdc, 4) == 1 == 1) ? 0x8000 : 0x8800;
 
-    // Byte tileMapStart = (((memory.readByte(Mmu::LCDC) >> 3) & 1) == 1) ? 0x9c00 : 0x9800;
-    // Byte tileDataStart = (((memory.readByte(Mmu::LCDC) >> 4) & 1) == 1) ? 0x8000 : 0x8800;
-
-    // for (int i = 0; i < 128; i++) { // tile map sections are 128 bytes long
+    // for (int i = 0; i < 127; i++) { // tile map sections are 128 bytes long
     //     Byte lo = memory.readByte(tileDataStart + i);
     //     Byte hi = memory.readByte(tileDataStart + i + 1);
 
@@ -168,7 +203,7 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
 
 void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
     
-    // LCDStatus(memory);
+    LCDStatus(memory);
 
     bool isLcdEnabled = memory.readByte(Mmu::LCDC) >> 7;
     if (isLcdEnabled) {
@@ -187,8 +222,8 @@ void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
             // set bit 0 of IF to request vblank interrupt
             memory.writeByte(memory.IF, memory.readByte(memory.IF) | 0x01);
             drawFrame(cpu, memory);
-            // SDL_Delay(16); // 16 ms = 60 fps (1/60)
-            SDL_Delay(1000);
+            SDL_Delay(16); // 16 ms = 60 fps (1/60)
+            // SDL_Delay(1000);
         } else if (currentLine > 153) {
             memory.writeByte(Mmu::LY, 0);
         } else if (currentLine < 144) {
@@ -272,10 +307,12 @@ void Ppu::drawFrame(Cpu &cpu, Mmu &memory) {
 
 
 void Ppu::displayMemory(Cpu &cpu, Mmu &memory) {
-    char buf[88];
+    char buf[108];
     uint lineHeight = 30;
     uint x = EMULATOR_SCREEN_WIDTH + 5; // +5 for a bit of left padding
     Byte lcdcBin = memory.readByte(Mmu::LCDC);
+    Byte statBin = memory.readByte(Mmu::STAT);
+    Byte ly = memory.readByte(Mmu::LY);
     snprintf(buf, sizeof(buf), "A: 0x%02X", cpu.A); drawText(buf, x, lineHeight * 0);
     snprintf(buf, sizeof(buf), "F: 0x%02X", cpu.F); drawText(buf, x, lineHeight * 1);
     snprintf(buf, sizeof(buf), "B: 0x%02X", cpu.B); drawText(buf, x, lineHeight * 2);
@@ -287,6 +324,8 @@ void Ppu::displayMemory(Cpu &cpu, Mmu &memory) {
     snprintf(buf, sizeof(buf), "PC: 0x%02X", cpu.PC); drawText(buf, x, lineHeight * 8);
     snprintf(buf, sizeof(buf), "SP: 0x%02X", cpu.SP); drawText(buf, x, lineHeight * 9);
     snprintf(buf, sizeof(buf), "LCDC: 0b%s", std::bitset<8>(lcdcBin).to_string().c_str()); drawText(buf, x, lineHeight * 10); // draw the bits out here since I want to see each part's effect
+    snprintf(buf, sizeof(buf), "STAT: 0b%s", std::bitset<8>(statBin).to_string().c_str()); drawText(buf, x, lineHeight * 11); // draw the bits out here since I want to see each part's effect
+    snprintf(buf, sizeof(buf), "LY: 0x%02X", ly); drawText(buf, x, lineHeight * 12);
 
 }
 

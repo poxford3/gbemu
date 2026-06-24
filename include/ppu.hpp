@@ -33,10 +33,11 @@ class Ppu {
         void displayMemory(Cpu &cpu, Mmu &memory);
         void drawText(const std::string& text, int x, int y);
         // gameboy rendering
-        void loadScanline( Mmu &memory, Byte currentLine);
+        void loadScanline(Mmu &memory, Byte currentLine);
         void LCDStatus(Mmu &memory);
         void updateGraphics(Cpu &cpu, Mmu &memory, uint cycles);
         void drawFrame(Cpu &cpu, Mmu &memory);
+        // files
         FileHandler getFileFromUser();
     private:
         bool DEBUG = true; // used to change between view with(out) registers and memory

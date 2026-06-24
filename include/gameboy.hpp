@@ -31,7 +31,6 @@ class Gameboy {
         void handleInterrupts();
 
         bool checksum();
-        void printMemory();
         void testWithJson(std::string path);
 
 };

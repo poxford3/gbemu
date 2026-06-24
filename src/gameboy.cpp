@@ -54,7 +54,7 @@ uint Gameboy::tickCpu() {
         }
 
         Byte opcode = cpu.loadByte(mmu);
-        printf("opcode %20X, PC %20X\n", opcode, cpu.PC);
+        // printf("opcode %02X, PC %02X\n", opcode, cpu.PC);
         uint cycles = cpu.executeInstructions(opcode, mmu);
         return cycles;
     }
@@ -98,9 +98,11 @@ void Gameboy::updateTimer(uint cycles) {
     }
 }
 
+
 void Gameboy::updateGraphics(uint cycles) {
     ppu.updateGraphics(cpu, mmu, cycles);
 }
+
 
 void Gameboy::handleInterrupts() {
     Byte pending = mmu.interruptEnableRegister & mmu.readByte(Mmu::IF);
@@ -143,13 +145,6 @@ bool Gameboy::checksum() {
     return mmu.readByte(0x014D) == (checksum & 0xFF) ? true : false;
 }
 
-
-void Gameboy::printMemory() {
-    // bricks script, JUST for testing
-    for (uint i = 0x0; i <= 0x10000; i++) {
-        std::cout << "memory[" << i << "] = " << std::hex << (int)mmu.readByte(i) << std::endl;
-    }
-}
 
 /**
  * this was used to test the SST functions, which requires looping through a json file
