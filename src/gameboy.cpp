@@ -1,6 +1,7 @@
 #include <string>
 #include <fstream>
 #include "gameboy.hpp"
+#include "utils/bit.hpp"
 #include "utils/types.hpp"
 #include "cpu/opcodeNames.hpp"
 
@@ -70,7 +71,8 @@ void Gameboy::updateTimer(uint cycles) {
         mmu.ioRegisters[mmu.DIV - 0xFF00]++; // cannot directly write to DIV but must still increment
     }
 
-    if ((mmu.readByte(mmu.TAC) >> 2) & 1) {
+    // if ((mmu.readByte(mmu.TAC) >> 2) & 1) {
+    if (getBit(mmu.readByte(mmu.TAC), 2)) {
         timaCycles += cycles * 4;
 
         int freq = 4096; // Hz

@@ -2,6 +2,7 @@
 #include <cstdint>
 #include "cpu/cpu.hpp"
 #include "utils/types.hpp"
+#include "utils/bit.hpp"
 #include "cpu/opcodes.hpp"
 #include "cpu/opcycles.hpp"
 
@@ -71,7 +72,7 @@ Word Cpu::incWord(Word value) {
 }
 
 Byte Cpu::incByte(Byte value) {
-    bool currentCFlag = (F >> 4) & 1;
+    bool currentCFlag = getBit(F, 4);
     bool halfCarry = (value & 0x0F) == 0x0F;
     value++;
     updateFlags(value, 0, halfCarry, currentCFlag);
@@ -83,7 +84,7 @@ Word Cpu::decWord(Word value) {
 }
 
 Byte Cpu::decByte(Byte value) {
-    bool currentCFlag = (F >> 4) & 1;
+    bool currentCFlag = getBit(F, 4);
     bool halfCarry = (value & 0x0F) == 0;
     value--;
     updateFlags(value, 1, halfCarry, currentCFlag);
@@ -179,7 +180,7 @@ void Cpu::xorRegToA(Byte &src) {
 }
 
 void Cpu::_RRA(std::optional<bool> throughCarry) {
-    bool oldBit0 = A & 1; // Get the old bit 0
+    bool oldBit0 = getBit(A, 0); // Get the old bit 0
     A >>= 1; // Shift right by 1
     if (throughCarry.has_value() && throughCarry.value()) {
         A |= (F & 0x10) << 3; // Rotate through carry: old bit 0 goes to carry, and old carry goes to bit 7
@@ -191,7 +192,7 @@ void Cpu::_RRA(std::optional<bool> throughCarry) {
 }
 
 void Cpu::_RLA(std::optional<bool> throughCarry) {
-    bool oldBit7 = (A >> 7) & 1; // Get the old bit 7
+    bool oldBit7 = getBit(A, 7); // Get the old bit 7
     A <<= 1; // Shift left by 1
     if (throughCarry.has_value() && throughCarry.value()) {
         A |= (F & 0x10) >> 4; // Rotate through carry: old bit 7 goes to carry, and old carry goes to bit 0 (RL)
@@ -226,7 +227,7 @@ void Cpu::rotateRight(Byte &value, std::optional<bool> throughCarry) {
 }
 
 void Cpu::shiftLeft(Byte &value) {
-    bool oldBit7 = (value >> 7) & 1; // Get the old bit 7
+    bool oldBit7 = getBit(value, 7); // Get the old bit 7
     value <<= 1; // Shift left by 1
     updateFlags(value, false, false, oldBit7); // Z flag is set based on result, N H flags are reset, C flag is updated above
 }
@@ -251,7 +252,7 @@ void Cpu::swapNibbles(Byte &value) {
 void Cpu::bit(Byte &value, int bit) {
     // bit test
     bool bitValue = (value >> bit) & 1; // Get the value of the specified bit
-    bool currentCFlag = (F >> 4) & 1; // keep C flag the same
+    bool currentCFlag = getBit(F, 4); // keep C flag the same
     updateFlags(bitValue, false, true, currentCFlag); // Z flag is set based on bit value, N flag is reset, H flag is set
 }
 
@@ -278,7 +279,7 @@ void Cpu::addRegToReg(Word &dest, Word &src) {
     // case dest and src to uint to make sure they don't wrap around before checking carry
     bool flag_c = ((uint)dest + (uint)src) > 0xFFFF; // Set C flag if there is a carry from bit 15
     dest += src;
-    bool currentZFlag = (F >> 7) & 1;
+    bool currentZFlag = getBit(F, 7);
     Byte resultZ = currentZFlag ? 0x00: 0x01;
     updateFlags(resultZ, false, flag_h, flag_c);
 }
@@ -301,7 +302,7 @@ void Cpu::subRegToReg(Byte &dest, Byte &src) {
 
 
 void Cpu::ADC(Byte src) {
-    Word result = A + src + ((F >> 4) & 1); // Calculate A + src + carry
+    Word result = A + src + getBit(F, 4); // Calculate A + src + carry
     bool flag_z = (result & 0xFF) == 0; // Set Z flag if result is zero
     bool flag_n = false; // Reset N flag for addition
     bool flag_h = ((A & 0x0F) + (src & 0x0F) + ((F >> 4) & 1)) > 0x0F; // Set H flag if there is a carry from bit 3
@@ -329,10 +330,10 @@ void Cpu::CP(Byte src) {
 
 void Cpu::_DAA(Byte &A) {
     // https://www.reddit.com/r/EmuDev/comments/cdtuyw/comment/etwcyvy/
-    bool currentZFlag = (F >> 7) & 1;
-    bool currentNFlag = (F >> 6) & 1;
-    bool currentHFlag = (F >> 5) & 1;
-    bool currentCFlag = (F >> 4) & 1;
+    bool currentZFlag = getBit(F, 7);
+    bool currentNFlag = getBit(F, 6);
+    bool currentHFlag = getBit(F, 5);
+    bool currentCFlag = getBit(F, 4);
 
     if (!currentNFlag) {
         if (currentCFlag || A > 0x99) {
@@ -387,7 +388,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case JR_NZ_s8: {
-            bool currentZFlag = (F >> 7) & 1;
+            bool currentZFlag = getBit(F, 7);
             int8_t s8 = loadInt(memory);
             if (currentZFlag == 0) {
                 jr(s8);
@@ -399,7 +400,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case JR_NC_s8: {
-            bool currentCFlag = (F >> 4) & 1;
+            bool currentCFlag = getBit(F, 4);
             int8_t s8 = loadInt(memory);
             if (currentCFlag == 0) {
                 jr(s8);
@@ -450,7 +451,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case RET_NZ: {
-            bool currentZFlag = (F >> 7) & 1;
+            bool currentZFlag = getBit(F, 7);
             if (currentZFlag == 0) {
                 _RET(memory);
                 cycles = opcycles[opcode];
@@ -460,7 +461,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case RET_NC: {
-            bool currentCFlag = (F >> 4) & 1;
+            bool currentCFlag = getBit(F, 4);
             if (currentCFlag == 0) {
                 _RET(memory);
                 cycles = opcycles[opcode];
@@ -631,7 +632,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case JP_NZ_a16: {
-            bool currentZFlag = (F >> 7) & 1;
+            bool currentZFlag = getBit(F, 7);
             Word a16 = loadWord(memory);
             if (currentZFlag == 0) {
                 jp(a16);
@@ -643,7 +644,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case JP_NC_a16: {
-            bool currentCFlag = (F >> 4) & 1;
+            bool currentCFlag = getBit(F, 4);
             Word a16 = loadWord(memory);
             if (currentCFlag == 0) {
                 jp(a16);
@@ -802,7 +803,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case CALL_NZ_a16: {
-            bool currentZFlag = (F >> 7) & 1;
+            bool currentZFlag = getBit(F, 7);
             Word a16 = loadWord(memory);
             if (currentZFlag == 0) {
                 call(a16, memory);
@@ -814,7 +815,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case CALL_NC_a16: {
-            bool currentCFlag = (F >> 4) & 1;
+            bool currentCFlag = getBit(F, 4);
             Word a16 = loadWord(memory);
             if (currentCFlag == 0) {
                 call(a16, memory);
@@ -1023,7 +1024,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case SCF: {
-            Byte currentZFlag = (F >> 7) & 1; // Store current Z flag value
+            bool currentZFlag = getBit(F, 7); // Store current Z flag value
             Byte resultZ = currentZFlag ? 0x00: 0x01; // if current zflag is 1, resultZ zero to set it to one
             updateFlags(resultZ, false, false, true); // Set C flag, reset N and H flags, Z flag is unaffected
             cycles = opcycles[opcode];
@@ -1111,7 +1112,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case JR_Z_s8: {
-            bool currentZFlag = (F >> 7) & 1;
+            bool currentZFlag = getBit(F, 7);
             int8_t s8 = loadInt(memory);
             if (currentZFlag == 1) {
                 jr(s8);
@@ -1123,7 +1124,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case JR_C_s8: {
-            bool currentCFlag = (F >> 4) & 1;
+            bool currentCFlag = getBit(F, 4);
             int8_t s8 = loadInt(memory);
             if (currentCFlag == 1) {
                 jr(s8);
@@ -1175,7 +1176,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case RET_Z: {
-            bool currentZFlag = (F >> 7) & 1;
+            bool currentZFlag = getBit(F, 7);
             if (currentZFlag == 1) {
                 _RET(memory);
                 cycles = opcycles[opcode];
@@ -1185,7 +1186,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case RET_C: {
-            bool currentCFlag = (F >> 4) & 1;
+            bool currentCFlag = getBit(F, 4);
             if (currentCFlag == 1) {
                 _RET(memory);
                 cycles = opcycles[opcode];
@@ -1355,7 +1356,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case JP_Z_a16: {
-            bool currentZFlag = (F >> 7) & 1;
+            bool currentZFlag = getBit(F, 7);
             Word a16 = loadWord(memory);
             if (currentZFlag == 1) {
                 jp(a16);
@@ -1367,7 +1368,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case JP_C_a16: {
-            bool currentCFlag = (F >> 4) & 1;
+            bool currentCFlag = getBit(F, 4);
             Word a16 = loadWord(memory);
             if (currentCFlag == 1) {
                 jp(a16);
@@ -1524,7 +1525,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case CALL_Z_a16: {
-            bool currentZFlag = (F >> 7) & 1;
+            bool currentZFlag = getBit(F, 7);
             Word a16 = loadWord(memory);
             if (currentZFlag == 1) {
                 call(a16, memory);
@@ -1536,7 +1537,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         case CALL_C_a16: {
-            bool currentCFlag = (F >> 4) & 1;
+            bool currentCFlag = getBit(F, 4);
             Word a16 = loadWord(memory);
             if (currentCFlag == 1) {
                 call(a16, memory);
@@ -1722,16 +1723,16 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
         }
         case CPL: {
             A = ~A; // compliment(A)
-            Byte currentZFlag = (F >> 7) & 1; // Store current Z flag value
-            bool currentCFlag = (F >> 4) & 1; // Store current C flag value
+            bool currentZFlag = getBit(F, 7); // Store current Z flag value
+            bool currentCFlag = getBit(F, 4); // Store current C flag value
             Byte resultZ = currentZFlag ? 0x00: 0x01;
             updateFlags(resultZ, true, true, currentCFlag); // Toggle C flag, reset N and H flags, Z flag is unaffected
             cycles = opcycles[opcode];
             break;
         }
         case CCF: {
-            Byte currentZFlag = (F >> 7) & 1; // Store current Z flag value
-            bool currentCFlag = (F >> 4) & 1; // Store current C flag value
+            bool currentZFlag = getBit(F, 7); // Store current Z flag value
+            bool currentCFlag = getBit(F, 4); // Store current C flag value
             Byte resultZ = currentZFlag ? 0x00: 0x01;
             updateFlags(resultZ, false, false, !currentCFlag); // Toggle C flag, reset N and H flags, Z flag is unaffected
             cycles = opcycles[opcode];
