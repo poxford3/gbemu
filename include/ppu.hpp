@@ -47,8 +47,10 @@ class Ppu {
         static const uint EMULATOR_SCREEN_WIDTH = GAMEBOY_WIDTH * winScale;
         static const uint EMULATOR_SCREEN_HEIGHT = GAMEBOY_HEIGHT * winScale;
 
-        // 3 bytes per pixel
+        // 3 bytes per pixel for background
         Byte frameBuffer[GAMEBOY_HEIGHT * GAMEBOY_WIDTH * 3];
+        // 4 bytes per pixel for sprites (transparency being the 4th)
+        Byte frameBufferObj[GAMEBOY_HEIGHT * GAMEBOY_WIDTH * 4];
         Byte tileMap[GAMEBOY_HEIGHT * GAMEBOY_WIDTH];
 };
 

@@ -5,6 +5,7 @@
 #include "ppu.hpp"
 #include "gameboy.hpp"
 #include "utils/file.hpp"
+#include "utils/bit.hpp"
 
 
 int main() {
@@ -21,6 +22,11 @@ int main() {
     if (gameboy.checksumPassed) {
         gameboy.run();
     }
+
+    // Byte test = 0xF2;
+    // for (int i = 0; i <= 7; i++) {
+    //     printf("bit %d: %d\n", i, getBit(test, i));
+    // }
 
     // printf("size of int: %lu", sizeof(int));
     

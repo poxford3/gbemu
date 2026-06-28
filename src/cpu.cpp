@@ -308,7 +308,7 @@ void Cpu::ADC(Byte src) {
     bool flag_h = ((A & 0x0F) + (src & 0x0F) + ((F >> 4) & 1)) > 0x0F; // Set H flag if there is a carry from bit 3
     bool flag_c = result > 0xFF; // Set C flag if there is a carry from bit 7
     A = result & 0xFF; // Store the result back in A, ensuring it stays within 8 bits
-    updateFlags(A, false, flag_h, flag_c); // Update flags based on the result of the addition
+    updateFlags(A, flag_n, flag_h, flag_c); // Update flags based on the result of the addition
 }
 
 void Cpu::SBC(Byte src) {
@@ -318,7 +318,7 @@ void Cpu::SBC(Byte src) {
     bool flag_h = ((A & 0x0F) < (src & 0x0F) + ((F >> 4) & 1)); // Set H flag if there is a borrow from bit 4
     bool flag_c = result > 0xFF; // Set C flag if there is a borrow from bit 8
     A = result & 0xFF; // Store the result back in A, ensuring it stays within 8 bits
-    updateFlags(A, true, flag_h, flag_c); // Update flags based on the result of the subtraction
+    updateFlags(A, flag_n, flag_h, flag_c); // Update flags based on the result of the subtraction
 }
 
 void Cpu::CP(Byte src) {

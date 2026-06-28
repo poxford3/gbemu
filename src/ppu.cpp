@@ -172,20 +172,40 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
         return;
     }
 
-    // Byte currentPalette = memory.readByte(Mmu::BGP);
-    // Byte pal00 = currentPalette & 0b00000011;
-    // Byte pal01 = (currentPalette & 0b00001100) >> 2;
-    // Byte pal10 = (currentPalette & 0b00110000) >> 4;
-    // Byte pal11 = (currentPalette & 0b11000000) >> 6;
-    Byte lcdc = memory.readByte(Mmu::LCDC);
+    Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
+    Byte scrollx = memory.readByte(Mmu::SCX);
+    Byte scrolly = memory.readByte(Mmu::SCY);
     Word tileMapStart = (getBit(lcdc, 3) == 1) ? 0x9c00 : 0x9800;
-    Word tileDataStart = (getBit(lcdc, 4) == 1 == 1) ? 0x8000 : 0x8800;
+    Word tileDataStart = (getBit(lcdc, 4) == 1) ? 0x8000 : 0x8800;
+    Byte currentTileRow = ((currentLine + scrolly) / 8) % 32; // wraps back around at the end of the 32x32 block
+    Byte currentTileCol = ((currentLine + scrollx));
 
-    // for (int i = 0; i < 127; i++) { // tile map sections are 128 bytes long
-    //     Byte lo = memory.readByte(tileDataStart + i);
-    //     Byte hi = memory.readByte(tileDataStart + i + 1);
+    Word tileMapAddress = tileMapStart + (currentTileRow * 32) + currentTileCol; // 
+    Byte tileId = memory.readByte(tileMapAddress);
 
-    // }
+    Word bgPalette = memory.readByte(Mmu::BGP);
+    Byte pal00 = bgPalette & 0b00000011;
+    Byte pal01 = (bgPalette & 0b00001100) >> 2;
+    Byte pal10 = (bgPalette & 0b00110000) >> 4;
+    Byte pal11 = (bgPalette & 0b11000000) >> 6;
+
+    // formula used to determine color value from bg palette
+    // shifting over 2 bits at a time
+    Byte colorVal = bgPalette << (0b11 * 2) & 0b11;
+
+
+    Byte lo = memory.readByte(tileDataStart + currentLine); // low byte of the tile map data
+    Byte hi = memory.readByte(tileDataStart + currentLine + 1); // high byte
+    // printf("hi 0x%02X lo 0x%02X, ", hi, lo);
+
+    std::bitset<16> rowVal;
+    // from thethiefmaster on emu discord
+    for (int i = 0; i < 8; i++) {
+        rowVal.set(i*2, getBit(lo, i));
+        rowVal.set(i*2+1, getBit(hi, i));
+    }
+    // printf("rowval 0x%02X\n", rowVal);
+
 
     for (int x = 0; x < GAMEBOY_WIDTH; x++) {
         uint index = (currentLine * GAMEBOY_WIDTH + x) * 3; 
@@ -200,6 +220,7 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
         }
     }
 }
+
 
 void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
     
@@ -313,6 +334,7 @@ void Ppu::displayMemory(Cpu &cpu, Mmu &memory) {
     snprintf(buf, sizeof(buf), "LY: 0x%02X", ly); drawText(buf, x, lineHeight * 12);
 
 }
+
 
 FileHandler Ppu::getFileFromUser() {
     nfdchar_t* outPath = nullptr;
