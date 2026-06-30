@@ -27,23 +27,52 @@ void Mmu::loadRom(const std::vector<Byte>& program) {
     printf("title %s\n", title.c_str());
 
     std::copy(program.begin(), program.end(), entireRom);
-    MBCType = program[0x147];
-    ROMSize = 0x4000 * (1 << program[0x148]);
+    // pandocs pg 164
+    getMBCType(program[0x147]);
+    // pandocs pg 156
+    ROMSize = 0x7D00 * (1 << program[0x148]); // 32kb * number of banks
     RAMSize = (program[0x149] == 0) ? 0 : (1 << (program[0x149] - 1)) * 0x2000; // todo verify this
+    RAMEnabled = false;
 }
 
 
-void Mmu::swapRomBank(Byte bank) {
+void Mmu::getMBCType(Byte MBCvalue) {
     // https://gbdev.io/pandocs/MBCs.html#mbc-unmapped-ram-bank-access
     // https://gbdev.io/pandocs/The_Cartridge_Header.html?highlight=%240148#0147--cartridge-type
-    switch (MBCType) {
+    switch (MBCvalue) {
+        case 0x00: // MBC 0
+            MBCType = 0;
+            break;
         case 0x01: 
         case 0x02: 
-        case 0x03: // MBC1
-            if (bank == 0) {
-                bank = 1;
-            }
+        case 0x03: // MBC 1
+            MBCType = 1;
             break;
+        case 0x05:
+        case 0x06: // MBC 2
+            MBCType = 2;
+            break;
+        case 0x0F:
+        case 0x10:
+        case 0x11:
+        case 0x12:
+        case 0x13: // MBC 3
+            MBCType = 3;
+            break;
+    }
+}
+
+
+void Mmu::getRamSize(Byte RAMvalue, Byte MBCvalue) {
+    // all the carts that have ram on the board
+    std::vector<Byte> listOfPossibleRamCarts = {
+        0x02, 0x03, 0x08, 0x09, 0x0C, 0x0D,
+        0x10, 0x12, 0x13, 0x1A, 0x1B, 0x1D,
+        0x1E, 0x22, 0xFF
+    };
+    // https://stackoverflow.com/a/24139474/7361467
+    if ((std::find(listOfPossibleRamCarts.begin(), listOfPossibleRamCarts.end(), MBCvalue)) != listOfPossibleRamCarts.end()) {
+
     }
 }
 
@@ -51,6 +80,7 @@ void Mmu::swapRomBank(Byte bank) {
 void Mmu::reset() {
     std::fill(std::begin(romBank0), std::end(romBank0), 0);
     std::fill(std::begin(romBankN), std::end(romBankN), 0);
+    std::fill(std::begin(externalRam), std::end(externalRam), 0);
     std::fill(std::begin(VRam), std::end(VRam), 0);
     std::fill(std::begin(workRamBank0), std::end(workRamBank0), 0);
     std::fill(std::begin(workRamBankN), std::end(workRamBankN), 0);
@@ -117,13 +147,72 @@ void Mmu::reset() {
 }
 
 
+
+void Mmu::handleRomWrite(Word address, Byte value) {
+	int romsize = 0x7D00 * (1 << ROMSize); // 32,000 kib ($7D00 == 32000)
+
+	switch (MBCType) {
+        case 0: {
+            // nothing happens when you write to a cartrige area in a non-MBC
+            break;
+        }
+        case 1: { // MBC1
+            Byte reg = address >> 13 & 0x02; // get the 13th and 14th bits of the address (selects the regiser)
+            switch (reg) {
+                case 0x00: { // RAM Enable
+                    std::cout << "case 0x00 " << int(value) << " | " << int(value & 0x0F) << std::endl;
+                    if ((value & 0x0F) == 0xA) { //  check bottom 4 bits to see if $A
+                        RAMEnabled = true;
+                    } else {
+                        RAMEnabled = false;
+                    }
+                    break;
+                }
+                case 0x01: { // ROM bank number
+                    // value & 0x1F will return 1 of 32 possible values (0-31)
+                    // std::cout << "case 0x01" << std::endl;
+                    currentRomBank = value & 0x1F;
+                    if (currentRomBank == 0) currentRomBank = 1; //  bank num cannot be 0 to not use first 16kb of ROM
+                    break;
+                }
+                case 0x02: { // RAM bank number or Upper Bits of ROM Bank number
+                    // std::cout << "case 0x02" << std::endl;
+                    if (romsize >= 1000000) { //  roms 1mb and larger
+                        currentRomBank = value & 0x60; // get bits 5 and 6 TODO FINISH HERE
+                    } else {
+                        currentRamBank = value & 0x03; // get last 2 bits
+                    }
+                    break;
+                }
+                case 0x03: { //  Banking mode select
+                    // std::cout << "case 0x03" << std::endl;
+                    bankingMode = value & 0x1;
+                    break;
+                }
+            }
+        }
+        case 2: { // MBC2
+
+        }
+    }
+}
+
+
 void Mmu::writeByte(Word address, Byte value) {
-    if (address >= 0x0000 && address <= 0x3FFF) {
-        romBank0[address] = value;
-    } else if (address >= 0x4000 && address <= 0x7FFF) {
-        romBankN[address - 0x4000] = value;
+    //     if (address >= 0x0000 && address <= 0x3FFF) {
+    //     romBank0[address] = value; // todo look into if this should be read only so never write to it
+    // } else if (address >= 0x4000 && address <= 0x7FFF) {
+    //     romBankN[address - 0x4000] = value;
+    // } 
+
+    if (address >= 0x0000 && address <= 0x7FFF) {
+        handleRomWrite(address, value);
     } else if (address >= 0x8000 && address <= 0x9FFF) {
         VRam[address - 0x8000] = value;
+    } else if (address >= 0xA000 && address <= 0xBFFF) {
+        if (RAMEnabled) { // check if external RAM is enabled
+            externalRam[address - 0xA000] = value;
+        }
     } else if (address >= 0xC000 && address <= 0xCFFF) {
         workRamBank0[address - 0xC000] = value;
     } else if (address >= 0xD000 && address <= 0xDFFF) {
@@ -163,7 +252,9 @@ Byte Mmu::readByte(Word address) {
     } else if (address >= 0x4000 && address <= 0x7FFF) {
         return romBankN[address - 0x4000];
     } else if (address >= 0xA000 && address <= 0xBFFF) {
-        return externalRam[address - 0xA000];
+        if (RAMSize > 0) { // todo verify this behavior (only putting out a value if it's enabled)
+            return externalRam[address - 0xA000];
+        } else return 0xFF; // if external ram isn't enabled, often just returning 0xFF
     } else if (address >= 0x8000 && address <= 0x9FFF) {
         return VRam[address - 0x8000];
     } else if (address >= 0xC000 && address <= 0xCFFF) {

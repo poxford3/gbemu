@@ -1,4 +1,5 @@
 #include <string>
+#include <algorithm>
 #include "utils/types.hpp"
 #include "utils/file.hpp"
 
@@ -82,22 +83,26 @@ class Mmu {
         
         void reset();
         void loadRom(const std::vector<Byte>& program);
-        void swapRomBank(Byte bank);
         void writeByte(Word address, Byte value);
         Byte readByte(Word address);  
         int8_t readInt(Word address);  
         
-    private:
+        private:
         // https://gbdev.io/pandocs/The_Cartridge_Header.html#0147--cartridge-type
+        void handleRomWrite(Word address, Byte value);
+        void getMBCType(Byte bank);
+        void getRamSize(Byte RAMvalue, Byte MBCvalue);
         Byte MBCType = 0; // type of memory bank controller, value found at 0x147 in ROM header
 
         Byte entireRom[0x18000]; // max ROM size is 2MB, allocating that
         Byte currentRomBank = 1;
+        bool bankingMode = false;
         Byte ROMSize = 0; // 0x148 in ROM header
 
         Byte externalRam[0x8000]; // max size of external RAM is 32KB, so allocating plenty. Most use less
         Byte currentRamBank = 0;
         Byte RAMSize = 0; // 0x149 in ROM header
+        bool RAMEnabled = false;
 
 };
 
