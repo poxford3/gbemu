@@ -36,47 +36,6 @@ void Mmu::loadRom(const std::vector<Byte>& program) {
 }
 
 
-void Mmu::getMBCType(Byte MBCvalue) {
-    // https://gbdev.io/pandocs/MBCs.html#mbc-unmapped-ram-bank-access
-    // https://gbdev.io/pandocs/The_Cartridge_Header.html?highlight=%240148#0147--cartridge-type
-    switch (MBCvalue) {
-        case 0x00: // MBC 0
-            MBCType = 0;
-            break;
-        case 0x01: 
-        case 0x02: 
-        case 0x03: // MBC 1
-            MBCType = 1;
-            break;
-        case 0x05:
-        case 0x06: // MBC 2
-            MBCType = 2;
-            break;
-        case 0x0F:
-        case 0x10:
-        case 0x11:
-        case 0x12:
-        case 0x13: // MBC 3
-            MBCType = 3;
-            break;
-    }
-}
-
-
-void Mmu::getRamSize(Byte RAMvalue, Byte MBCvalue) {
-    // all the carts that have ram on the board
-    std::vector<Byte> listOfPossibleRamCarts = {
-        0x02, 0x03, 0x08, 0x09, 0x0C, 0x0D,
-        0x10, 0x12, 0x13, 0x1A, 0x1B, 0x1D,
-        0x1E, 0x22, 0xFF
-    };
-    // https://stackoverflow.com/a/24139474/7361467
-    if ((std::find(listOfPossibleRamCarts.begin(), listOfPossibleRamCarts.end(), MBCvalue)) != listOfPossibleRamCarts.end()) {
-
-    }
-}
-
-
 void Mmu::reset() {
     std::fill(std::begin(romBank0), std::end(romBank0), 0);
     std::fill(std::begin(romBankN), std::end(romBankN), 0);
@@ -147,6 +106,60 @@ void Mmu::reset() {
 }
 
 
+void Mmu::getMBCType(Byte MBCvalue) {
+    // https://gbdev.io/pandocs/MBCs.html#mbc-unmapped-ram-bank-access
+    // https://gbdev.io/pandocs/The_Cartridge_Header.html?highlight=%240148#0147--cartridge-type
+    switch (MBCvalue) {
+        case 0x00: // MBC 0
+            MBCType = 0;
+            break;
+        case 0x01: 
+        case 0x02: 
+        case 0x03: // MBC 1
+            MBCType = 1;
+            break;
+        case 0x05:
+        case 0x06: // MBC 2
+            MBCType = 2;
+            break;
+        case 0x0F:
+        case 0x10:
+        case 0x11:
+        case 0x12:
+        case 0x13: // MBC 3
+            MBCType = 3;
+            break;
+    }
+    std::cout << "mbc type " << int(MBCType) << std::endl;
+}
+
+
+void Mmu::getRamSize(Byte RAMvalue, Byte MBCvalue) {
+    // all the carts that have ram on the board
+    std::vector<Byte> listOfPossibleRamCarts = {
+        0x02, 0x03, 0x08, 0x09, 0x0C, 0x0D,
+        0x10, 0x12, 0x13, 0x1A, 0x1B, 0x1D,
+        0x1E, 0x22, 0xFF
+    };
+    // https://stackoverflow.com/a/24139474/7361467
+    if ((std::find(listOfPossibleRamCarts.begin(), listOfPossibleRamCarts.end(), MBCvalue)) != listOfPossibleRamCarts.end()) {
+        switch (RAMvalue) {
+            case 0x00: RAMSize = 0; break;
+            case 0x01: break; // unused
+            // case 0x01: break; // unused
+            // case 0x01: break; // unused
+            }
+        } 
+}
+
+
+void Mmu::swapRomBank(Byte bank) {
+    int newStart = 0x4000 * bank; // can also do bank << 14
+
+    // exclusive bound (everything up to 0x4000 for new end)
+    std::copy(entireRom + newStart, entireRom + newStart + 0x4000, romBankN);
+}
+
 
 void Mmu::handleRomWrite(Word address, Byte value) {
 	int romsize = 0x7D00 * (1 << ROMSize); // 32,000 kib ($7D00 == 32000)
@@ -157,7 +170,7 @@ void Mmu::handleRomWrite(Word address, Byte value) {
             break;
         }
         case 1: { // MBC1
-            Byte reg = address >> 13 & 0x02; // get the 13th and 14th bits of the address (selects the regiser)
+            Byte reg = address >> 13 & 0x03; // get the 13th and 14th bits of the address (selects the regiser)
             switch (reg) {
                 case 0x00: { // RAM Enable
                     std::cout << "case 0x00 " << int(value) << " | " << int(value & 0x0F) << std::endl;
@@ -170,22 +183,23 @@ void Mmu::handleRomWrite(Word address, Byte value) {
                 }
                 case 0x01: { // ROM bank number
                     // value & 0x1F will return 1 of 32 possible values (0-31)
-                    // std::cout << "case 0x01" << std::endl;
+                    std::cout << "case 0x01" << std::endl;
                     currentRomBank = value & 0x1F;
                     if (currentRomBank == 0) currentRomBank = 1; //  bank num cannot be 0 to not use first 16kb of ROM
+                    swapRomBank(currentRamBank); // swap to new romBankN
                     break;
                 }
                 case 0x02: { // RAM bank number or Upper Bits of ROM Bank number
-                    // std::cout << "case 0x02" << std::endl;
-                    if (romsize >= 1000000) { //  roms 1mb and larger
-                        currentRomBank = value & 0x60; // get bits 5 and 6 TODO FINISH HERE
+                    std::cout << "case 0x02" << std::endl;
+                    if (bankingMode == 0) { //  roms 1mb and larger (banking mode 0)
+                        currentRomBank = value & 0x60; // get bits 5 and 6
                     } else {
                         currentRamBank = value & 0x03; // get last 2 bits
                     }
                     break;
                 }
                 case 0x03: { //  Banking mode select
-                    // std::cout << "case 0x03" << std::endl;
+                    std::cout << "case 0x03" << std::endl;
                     bankingMode = value & 0x1;
                     break;
                 }
@@ -199,12 +213,6 @@ void Mmu::handleRomWrite(Word address, Byte value) {
 
 
 void Mmu::writeByte(Word address, Byte value) {
-    //     if (address >= 0x0000 && address <= 0x3FFF) {
-    //     romBank0[address] = value; // todo look into if this should be read only so never write to it
-    // } else if (address >= 0x4000 && address <= 0x7FFF) {
-    //     romBankN[address - 0x4000] = value;
-    // } 
-
     if (address >= 0x0000 && address <= 0x7FFF) {
         handleRomWrite(address, value);
     } else if (address >= 0x8000 && address <= 0x9FFF) {

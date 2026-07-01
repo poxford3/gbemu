@@ -92,6 +92,9 @@ class Mmu {
         void handleRomWrite(Word address, Byte value);
         void getMBCType(Byte bank);
         void getRamSize(Byte RAMvalue, Byte MBCvalue);
+        void swapRomBank(Byte bank);
+
+
         Byte MBCType = 0; // type of memory bank controller, value found at 0x147 in ROM header
 
         Byte entireRom[0x18000]; // max ROM size is 2MB, allocating that
