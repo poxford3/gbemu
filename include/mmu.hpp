@@ -1,6 +1,7 @@
 #include <string>
 #include <algorithm>
 #include "utils/types.hpp"
+#include "utils/bit.hpp"
 #include "utils/file.hpp"
 
 #ifndef MMU_HPP
@@ -102,10 +103,22 @@ class Mmu {
         bool bankingMode = false;
         Byte ROMSize = 0; // 0x148 in ROM header
 
-        Byte externalRam[0x8000]; // max size of external RAM is 32KB, so allocating plenty. Most use less
+        // Byte externalRam[0x8000]; // max size of external RAM is 32KB, so allocating plenty. Most use less
+        Byte externalRam[0x20000]; // max size of external RAM is 128kb, so allocating plenty. Most use less
         Byte currentRamBank = 0;
-        Byte RAMSize = 0; // 0x149 in ROM header
+        uint RAMSize = 0; // 0x149 in ROM header
         bool RAMEnabled = false;
+
+        // MBC3 registers
+        bool latchStep1;
+        bool latchStep2;
+        bool latchRTC;
+        // https://gbdev.io/pandocs/MBC3.html#clock-counter-registers
+        Byte RTC_S;     // seconds ($08)
+        Byte RTC_M;     // minutes ($09)
+        Byte RTC_H;     // hours   ($0A)
+        Byte RTC_DL;    // lower 8 bits of day counter ($0B)
+        Byte RTC_DH;    // upper 1 bit of day counter, carry, halt
 
 };
 

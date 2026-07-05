@@ -31,7 +31,7 @@ void Mmu::loadRom(const std::vector<Byte>& program) {
     getMBCType(program[0x147]);
     // pandocs pg 156
     ROMSize = 0x7D00 * (1 << program[0x148]); // 32kb * number of banks
-    RAMSize = (program[0x149] == 0) ? 0 : (1 << (program[0x149] - 1)) * 0x2000; // todo verify this
+    getRamSize(program[0x149], program[0x147]);
     RAMEnabled = false;
 }
 
@@ -130,7 +130,6 @@ void Mmu::getMBCType(Byte MBCvalue) {
             MBCType = 3;
             break;
     }
-    std::cout << "mbc type " << int(MBCType) << std::endl;
 }
 
 
@@ -146,10 +145,14 @@ void Mmu::getRamSize(Byte RAMvalue, Byte MBCvalue) {
         switch (RAMvalue) {
             case 0x00: RAMSize = 0; break;
             case 0x01: break; // unused
-            // case 0x01: break; // unused
-            // case 0x01: break; // unused
-            }
-        } 
+            case 0x02: RAMSize = 2 << 3; break; // 8kb
+            case 0x03: RAMSize = 2 << 5; break; // 32kb
+            case 0x04: RAMSize = 2 << 7; break; // 128kb
+            case 0x05: RAMSize = 2 << 6; break; // 64kb
+        }
+    } else {
+        RAMSize = 0;
+    }
 }
 
 
@@ -162,7 +165,7 @@ void Mmu::swapRomBank(Byte bank) {
 
 
 void Mmu::handleRomWrite(Word address, Byte value) {
-	int romsize = 0x7D00 * (1 << ROMSize); // 32,000 kib ($7D00 == 32000)
+	// int romsize = 0x7D00 * (1 << ROMSize); // 32,000 kib ($7D00 == 32000)  TODO figure out if this is needed
 
 	switch (MBCType) {
         case 0: {
@@ -173,7 +176,7 @@ void Mmu::handleRomWrite(Word address, Byte value) {
             Byte reg = address >> 13 & 0x03; // get the 13th and 14th bits of the address (selects the regiser)
             switch (reg) {
                 case 0x00: { // RAM Enable
-                    std::cout << "case 0x00 " << int(value) << " | " << int(value & 0x0F) << std::endl;
+                    // std::cout << "case 0x00 " << int(value) << " | " << int(value & 0x0F) << std::endl;
                     if ((value & 0x0F) == 0xA) { //  check bottom 4 bits to see if $A
                         RAMEnabled = true;
                     } else {
@@ -182,15 +185,19 @@ void Mmu::handleRomWrite(Word address, Byte value) {
                     break;
                 }
                 case 0x01: { // ROM bank number
-                    // value & 0x1F will return 1 of 32 possible values (0-31)
-                    std::cout << "case 0x01" << std::endl;
-                    currentRomBank = value & 0x1F;
-                    if (currentRomBank == 0) currentRomBank = 1; //  bank num cannot be 0 to not use first 16kb of ROM
+                    // std::cout << "case 0x01" << std::endl;
+                    // check if values align with upper-bit register issues / disallow 0 to be a value
+                    if (currentRomBank == 0x00 || currentRomBank == 0x20 || currentRomBank == 0x40 || currentRomBank == 0x60) {
+                        currentRomBank = (value & 0x1F) + 1;
+                    } else {
+                        // value & 0x1F will return 1 of 32 possible values (0-31)
+                        currentRomBank = value & 0x1F;
+                    }
                     swapRomBank(currentRamBank); // swap to new romBankN
                     break;
                 }
                 case 0x02: { // RAM bank number or Upper Bits of ROM Bank number
-                    std::cout << "case 0x02" << std::endl;
+                    // std::cout << "case 0x02" << std::endl;
                     if (bankingMode == 0) { //  roms 1mb and larger (banking mode 0)
                         currentRomBank = value & 0x60; // get bits 5 and 6
                     } else {
@@ -199,14 +206,62 @@ void Mmu::handleRomWrite(Word address, Byte value) {
                     break;
                 }
                 case 0x03: { //  Banking mode select
-                    std::cout << "case 0x03" << std::endl;
+                    // std::cout << "case 0x03" << std::endl;
                     bankingMode = value & 0x1;
                     break;
                 }
             }
         }
         case 2: { // MBC2
-
+            bool reg = address < 0x4000;
+            if (reg) {
+                Byte bit8 = getBit(value, 8);
+                if (bit8) {
+                    currentRamBank = value & 0x0F;
+                    if (currentRomBank == 0x00) currentRomBank = 1;
+                    swapRomBank(currentRomBank);
+                } else {
+                    if ((value & 0x0F) == 0xA) { //  check bottom 4 bits to see if $A
+                        RAMEnabled = true;
+                    } else {
+                        RAMEnabled = false;
+                    }
+                }
+            }
+            break;
+        }
+        case 3: { // MBC3
+            Byte reg = address >> 13 & 0x03; // get the 13th and 14th bits of the address (selects the regiser)
+            switch (reg) {
+                case 0x00: { // RAM and Timer Enable
+                    // std::cout << "case 0x00 " << int(value) << " | " << int(value & 0x0F) << std::endl;
+                    if ((value & 0x0F) == 0xA) { //  check bottom 4 bits to see if $A
+                        RAMEnabled = true;
+                    } else {
+                        RAMEnabled = false;
+                    }
+                    break;
+                }
+                case 0x01: { // ROM Bank Number
+                    currentRamBank = value & 0x7F;
+                    if (currentRomBank == 0x00) currentRomBank = 1;
+                    swapRomBank(currentRomBank);
+                }
+                case 0x10: { // RAM Bank Number or RTC Register Select
+                    if (value <= 0x07) {
+                        // corresponding ram bank
+                    } else if (value <= 0x0C) {
+                        // corresponding rtc register
+                    }
+                }
+                case 0x11: { // Latch Clock Data
+                    if (value == 0x00) latchStep1 = true;
+                    if (latchStep1 && value == 0x01) {
+                        // latch current time to RTC
+                        latchStep2 == true; // TODO finish MBC 3 (need to finish case 0x11 and handle RAM registers)
+                    }
+                }
+            }
         }
     }
 }
