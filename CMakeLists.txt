@@ -50,16 +50,16 @@ target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
 # ---
 
 # Link libraries
-target_include_directories(gbemu PRIVATE ${NFD_INCLUDE_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE ${NFD_INCLUDE_DIR})
 
-target_include_directories(gbemu PRIVATE 
+target_include_directories(${PROJECT_NAME} PRIVATE 
     ${SDL2_INCLUDE_DIRS}
     ${SDL2_IMAGE_INCLUDE_DIR}
     ${SDL2_TTF_INCLUDE_DIR}
     ${NFD_INCLUDE_DIR}
 )
 
-target_link_libraries(gbemu
+target_link_libraries(${PROJECT_NAME}
     ${SDL2_LIBRARIES}
     ${SDL2_IMAGE_LIBRARY}
     ${SDL2_TTF_LIBRARY}

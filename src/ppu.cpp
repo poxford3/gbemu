@@ -20,9 +20,9 @@ void Ppu::init() {
     window = SDL_CreateWindow("gbemu",
                     SDL_WINDOWPOS_CENTERED,
                     SDL_WINDOWPOS_CENTERED,
-                    (EMULATOR_SCREEN_WIDTH + MEMORY_SECTION_WIDTH), // allow extra room to render parts of the CPU
-                    EMULATOR_SCREEN_HEIGHT,
-                    SDL_WINDOW_SHOWN);
+                    (EMULATOR_SCREEN_WIDTH() + (DEBUG ? MEMORY_SECTION_WIDTH : 0)), // allow extra room to render parts of the CPU/MMU
+                    EMULATOR_SCREEN_HEIGHT(),
+                    SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
     if (window == NULL) {
         printf("error initializing window. SDL error: %s\n", SDL_GetError());
@@ -62,12 +62,7 @@ void Ppu::init() {
 }
 
 
-SDL_Renderer* Ppu::GetRenderer() {
-    return renderer;
-}
-
-
-void Ppu::close() {
+Ppu::~Ppu() {
     TTF_Quit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -78,7 +73,14 @@ void Ppu::close() {
 }
 
 
-void Ppu::run() {}
+SDL_Renderer* Ppu::GetRenderer() {
+    return renderer;
+}
+
+
+void Ppu::resize() {
+    SDL_SetWindowSize(window, (EMULATOR_SCREEN_WIDTH() + (DEBUG ? MEMORY_SECTION_WIDTH : 0)), EMULATOR_SCREEN_HEIGHT());
+}
 
 
 void Ppu::drawText(const std::string& text, int x, int y) {
@@ -184,10 +186,10 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
     Byte tileId = memory.readByte(tileMapAddress);
 
     Word bgPalette = memory.readByte(Mmu::BGP);
-    Byte pal00 = bgPalette & 0b00000011;
-    Byte pal01 = (bgPalette & 0b00001100) >> 2;
-    Byte pal10 = (bgPalette & 0b00110000) >> 4;
-    Byte pal11 = (bgPalette & 0b11000000) >> 6;
+    Byte pal00 = bgPalette & 0b11;
+    Byte pal01 = (bgPalette >> 2) & 0b11;
+    Byte pal10 = (bgPalette >> 4) & 0b11;
+    Byte pal11 = (bgPalette >> 6) & 0b11;
 
     // formula used to determine color value from bg palette
     // shifting over 2 bits at a time
@@ -260,36 +262,24 @@ void Ppu::drawFrame(Cpu &cpu, Mmu &memory) {
     while (SDL_PollEvent(&event) != 0) {
         if (event.type == SDL_QUIT) {
             running = false;
-            close();
         }
     }
 
-
     // functioning as the background at the moment
     SDL_Color c = palette.getColor(DARK_GRAY);
-
-    // bool LCDEnabled = (memory.readByte(Mmu::LCDC) >> 7) & 1;
-    // if (!LCDEnabled) {
-    //     SDL_Color lcd_disabled = palette.getColor(WHITE);
-    //     SDL_SetRenderDrawColor(renderer, lcd_disabled.r, lcd_disabled.g, lcd_disabled.b, lcd_disabled.a);
-    //     SDL_RenderClear(renderer);
-    //     SDL_RenderPresent(renderer);
-    //     return;
-    // }
-
 
     SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
     SDL_RenderClear(renderer);
 
     if (DEBUG) {
         displayMemory(cpu, memory);
-        SDL_Rect separator = {EMULATOR_SCREEN_WIDTH, 0, 1, EMULATOR_SCREEN_HEIGHT};
+        SDL_Rect separator = {static_cast<int>(EMULATOR_SCREEN_WIDTH()), 0, 1, static_cast<int>(EMULATOR_SCREEN_HEIGHT())};
         SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
         SDL_RenderFillRect(renderer, &separator);
     }
 
 
-    SDL_Rect gameboySection = {0, 0, (int)EMULATOR_SCREEN_WIDTH, (int)EMULATOR_SCREEN_HEIGHT};
+    SDL_Rect gameboySection = {0, 0, static_cast<int>(EMULATOR_SCREEN_WIDTH()), static_cast<int>(EMULATOR_SCREEN_HEIGHT())};
     SDL_UpdateTexture(gbTexture, NULL, frameBuffer, GAMEBOY_WIDTH * 3);
     SDL_RenderCopy(renderer, gbTexture, NULL, &gameboySection);
 
@@ -306,16 +296,35 @@ void Ppu::drawFrame(Cpu &cpu, Mmu &memory) {
         }
     }
 
+    handleInput();
+
     // if (SDL_PollEvent(&event) == SDL_MouseButtonEvent(&event)) {
     //     // todo add in clicking to open NFD
     // }
 }
 
 
+void Ppu::handleInput() {
+    const Byte* state = SDL_GetKeyboardState(NULL);
+
+    if (state[SDL_SCANCODE_1]) {
+        winScale = 1;
+        resize();
+    } else if (state[SDL_SCANCODE_2]) {
+        winScale = 2;
+        resize();
+    } else if (state[SDL_SCANCODE_3]) {
+        winScale = 3;
+        resize();
+    }
+
+}
+
+
 void Ppu::displayMemory(Cpu &cpu, Mmu &memory) {
     char buf[108];
     uint lineHeight = 30;
-    uint x = EMULATOR_SCREEN_WIDTH + 5; // +5 for a bit of left padding
+    uint x = EMULATOR_SCREEN_WIDTH() + 5; // +5 for a bit of left padding
     Byte lcdcBin = memory.readByte(Mmu::LCDC);
     Byte statBin = memory.readByte(Mmu::STAT);
     Byte ly = memory.readByte(Mmu::LY);

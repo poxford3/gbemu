@@ -10,14 +10,12 @@
 
 int main() {
 
-    std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/cpu_instrs.gb";
-        // std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/small_rom.gb";
+    // std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/cpu_instrs.gb";
+        std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/small_rom.gb";
     FileHandler fileH(path);
     Gameboy gameboy (fileH.readFile());
 
-    if (gameboy.checksumPassed) {
-        gameboy.run();
-    }
+    gameboy.run();
 
     
     return 0;

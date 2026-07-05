@@ -28,11 +28,16 @@ void Gameboy::stop() {
 
 
 void Gameboy::run() {
-    while (ppu.running) {
-        uint cycles = tickCpu();
-        updateTimer(cycles);
-        updateGraphics(cycles);
-        handleInterrupts();
+    if (checksumPassed) {
+        while (ppu.running) {
+            uint cycles = tickCpu();
+            updateTimer(cycles);
+            updateGraphics(cycles);
+            handleInterrupts();
+        }
+    }
+    else {
+        printf("checksum failed, game will not run.\n");
     }
 }
 

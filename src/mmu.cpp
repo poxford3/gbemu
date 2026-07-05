@@ -258,7 +258,7 @@ void Mmu::handleRomWrite(Word address, Byte value) {
                     if (value == 0x00) latchStep1 = true;
                     if (latchStep1 && value == 0x01) {
                         // latch current time to RTC
-                        latchStep2 == true; // TODO finish MBC 3 (need to finish case 0x11 and handle RAM registers)
+                        latchStep2 = true; // TODO finish MBC 3 (need to finish case 0x11 and handle RAM registers)
                     }
                 }
             }
