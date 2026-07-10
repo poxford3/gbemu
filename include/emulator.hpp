@@ -20,18 +20,22 @@ class Emulator {
         FileHandler getFileFromUser();
     private:
         bool running;
+        bool paused;
         int emulatorScreenWidth = 800;
         int emulatorScreenHeight = 600;
         SDL_Window* window;
         SDL_Renderer* renderer;
         SDL_Texture* gbTexture;
         TTF_Font* font;
+        SDL_Renderer* GetRenderer();
         // Gameboy gameboy;
         // std::unique_ptr<Gameboy> gameboy;
         std::optional<Gameboy> gameboy;
 
         void handleInput();
         void createGameboyTexture();
+        void displayMemory(Cpu &cpu, Mmu &memory);
+        void drawText(const std::string& text, int x, int y);
 
 };
 

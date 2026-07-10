@@ -58,6 +58,12 @@ void Emulator::init() {
     running = true;
 }
 
+
+SDL_Renderer* Emulator::GetRenderer() {
+    return renderer;
+}
+
+
 void Emulator::createGameboyTexture() {
     if (gameboy.has_value()) {
         gbTexture = SDL_CreateTexture(
@@ -84,26 +90,49 @@ void Emulator::run() {
                 }
                 if (event.type == SDL_KEYDOWN) {
                     if (event.key.keysym.scancode == SDL_SCANCODE_F) {
-                        FileHandler file = getFileFromUser();
-                        // gameboy = std::make_unique<Gameboy>(file.readFile());
-                        gameboy.emplace(file.readFile());
-                        createGameboyTexture();
+                            FileHandler file = getFileFromUser();
+                            if (sizeof(file) > 0) { // todo, check what happens when a user hits cancel, and if file isn't the right type (extension)
+                                printf("no file selected, please select a file to run the emulator\n");
+                                gameboy.emplace(file.readFile());
+                                createGameboyTexture();
+                            }
+                    } else if (event.key.keysym.scancode == SDL_SCANCODE_P) {
+                        if (gameboy.has_value()) {
+                            paused = !paused;
+                        }
+                    } else if (event.key.keysym.scancode == SDL_SCANCODE_S) {
+                        if (gameboy.has_value()) {
+                            if (gameboy->ppu.palette.selectedPalette == PaletteOptions::GameboyGreen) {
+                                gameboy->ppu.palette.selectedPalette = PaletteOptions::BlackWhite;
+                            } else {
+                                gameboy->ppu.palette.selectedPalette = PaletteOptions::GameboyGreen;
+                            }
+                        }
                     }
                 }
             }
         SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
         SDL_RenderClear(renderer);
 
-        SDL_RenderPresent(renderer);
-        // handleInput();
-        static int counter = 0;
-        if (++counter % 60 == 0) {
-            std::cout << "status: " << gameboy->checksumPassed << '\n';
-            if (gameboy->checksumPassed) {
-                std::cout << "gameboy filesize: " << gameboy->mmu.entireRom.size() << std::endl;
+        if (gameboy.has_value()) {
+            if (!paused) {
+                gameboy->runFrame();
             }
+
+            if (true) { // TODO REPLACE WITH DEBUG SOMEWHERE
+                displayMemory(gameboy->cpu, gameboy->mmu);
+                SDL_Rect separator = {static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_WIDTH()), 0, 1, static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_HEIGHT())};
+                SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
+                SDL_RenderFillRect(renderer, &separator);
+            }
+
+            SDL_Rect gameboySection = {0, 0, static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_WIDTH()), static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_HEIGHT())};
+            SDL_UpdateTexture(gbTexture, NULL, gameboy->ppu.frameBuffer.data(), gameboy->ppu.GAMEBOY_WIDTH * 3);
+            SDL_RenderCopy(renderer, gbTexture, NULL, &gameboySection);
         }
-        // SDL_Delay(16);
+
+        SDL_RenderPresent(renderer);
+        SDL_Delay(16); // 16 ms = 60 fps
     }
 }
 
@@ -113,6 +142,46 @@ void Emulator::handleInput() {
     if (state[SDL_SCANCODE_F]) {
     }
 }
+
+
+void Emulator::drawText(const std::string& text, int x, int y) {
+    SDL_Color textColor = {0, 0, 0, 255};
+    SDL_Surface* surface = TTF_RenderText_Solid(font, text.c_str(), textColor);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    
+    int w, h;
+    SDL_QueryTexture(texture, NULL, NULL, &w, &h);
+    SDL_Rect rect = {x, y, w, h};
+    
+    SDL_RenderCopy(renderer, texture, NULL, &rect);
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture);
+}
+
+
+void Emulator::displayMemory(Cpu &cpu, Mmu &memory) {
+    char buf[108];
+    uint lineHeight = 30;
+    uint x = gameboy->ppu.EMULATOR_SCREEN_WIDTH() + 5; // +5 for a bit of left padding
+    Byte lcdcBin = memory.readByte(Mmu::LCDC);
+    Byte statBin = memory.readByte(Mmu::STAT);
+    Byte ly = memory.readByte(Mmu::LY);
+    snprintf(buf, sizeof(buf), "A: 0x%02X", cpu.A); drawText(buf, x, lineHeight * 0);
+    snprintf(buf, sizeof(buf), "F: 0x%02X", cpu.F); drawText(buf, x, lineHeight * 1);
+    snprintf(buf, sizeof(buf), "B: 0x%02X", cpu.B); drawText(buf, x, lineHeight * 2);
+    snprintf(buf, sizeof(buf), "C: 0x%02X", cpu.C); drawText(buf, x, lineHeight * 3);
+    snprintf(buf, sizeof(buf), "D: 0x%02X", cpu.D); drawText(buf, x, lineHeight * 4);
+    snprintf(buf, sizeof(buf), "E: 0x%02X", cpu.E); drawText(buf, x, lineHeight * 5);
+    snprintf(buf, sizeof(buf), "H: 0x%02X", cpu.H); drawText(buf, x, lineHeight * 6);
+    snprintf(buf, sizeof(buf), "L: 0x%02X", cpu.L); drawText(buf, x, lineHeight * 7);
+    snprintf(buf, sizeof(buf), "PC: 0x%02X", cpu.PC); drawText(buf, x, lineHeight * 8);
+    snprintf(buf, sizeof(buf), "SP: 0x%02X", cpu.SP); drawText(buf, x, lineHeight * 9);
+    snprintf(buf, sizeof(buf), "LCDC: 0b%s", std::bitset<8>(lcdcBin).to_string().c_str()); drawText(buf, x, lineHeight * 10); // draw the bits out here since I want to see each part's effect
+    snprintf(buf, sizeof(buf), "STAT: 0b%s", std::bitset<8>(statBin).to_string().c_str()); drawText(buf, x, lineHeight * 11); // draw the bits out here since I want to see each part's effect
+    snprintf(buf, sizeof(buf), "LY: 0x%02X", ly); drawText(buf, x, lineHeight * 12);
+
+}
+
 
 FileHandler Emulator::getFileFromUser() {
     nfdchar_t* outPath = nullptr;
@@ -131,6 +200,5 @@ FileHandler Emulator::getFileFromUser() {
     } else {
         std::cerr << "Error: " << NFD_GetError() << std::endl;
     }
-    // return FileHandler(filePath);
     return FileHandler("");
 }

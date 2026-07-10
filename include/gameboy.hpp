@@ -18,7 +18,7 @@ class Gameboy {
         ~Gameboy();
         void start();
         void stop();
-        void run();
+        void runFrame();
         Cpu cpu;
         Mmu mmu;
         Ppu ppu;

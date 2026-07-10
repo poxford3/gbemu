@@ -3,108 +3,23 @@
 #include "utils/bit.hpp"
 
 Ppu::Ppu() {
-    window = nullptr;
-    renderer = nullptr;
-    font = nullptr;
-    gbTexture = nullptr;
+
 }
 
 
 void Ppu::init() {
-
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("SDL could not be intiialized, SDL error: %s\n", SDL_GetError());
-    }
-
-    window = SDL_CreateWindow("gbemu",
-                    SDL_WINDOWPOS_CENTERED,
-                    SDL_WINDOWPOS_CENTERED,
-                    (EMULATOR_SCREEN_WIDTH() + (DEBUG ? MEMORY_SECTION_WIDTH : 0)), // allow extra room to render parts of the CPU/MMU
-                    EMULATOR_SCREEN_HEIGHT(),
-                    SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-
-    if (window == NULL) {
-        printf("error initializing window. SDL error: %s\n", SDL_GetError());
-    }
-
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-
-    if (renderer == NULL) {
-        printf("error initializing renderer. SDL error: %s\n", SDL_GetError());
-    }
-
-    gbTexture = SDL_CreateTexture(
-                        renderer,
-                        SDL_PIXELFORMAT_RGB24,
-                        SDL_TEXTUREACCESS_STREAMING,
-                        GAMEBOY_WIDTH,
-                        GAMEBOY_HEIGHT
-                    );
-
-    if (gbTexture == NULL) {
-        printf("error initializing texture, SDL error %s\n", SDL_GetError());
-    }
-
-    if (TTF_Init()) {
-        printf("error initializing font, SDL error: %s\n", TTF_GetError());
-    }
-
-    font = TTF_OpenFont("/Users/poxford3/Documents/coding/cpp/gbemu/assets/arial/ARIAL.TTF", 24);
-    if (font == NULL) {
-        printf("error loading font: %s\n", TTF_GetError());
-    }
-
     palette = BlackWhite;
     // palette = GameboyGreen;
- 
-    running = true;
 }
 
 
 void Ppu::stop() {
-    running = false;
-    TTF_CloseFont(font);    
-    TTF_Quit();
-    SDL_DestroyTexture(gbTexture);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    gbTexture = NULL;
-    window = NULL;
-    renderer = NULL;
 
-    SDL_Quit();
 }
 
 
 Ppu::~Ppu() {
-    if (renderer != nullptr) {
-        stop();
-    }
-}
 
-
-SDL_Renderer* Ppu::GetRenderer() {
-    return renderer;
-}
-
-
-void Ppu::resize() {
-    SDL_SetWindowSize(window, (EMULATOR_SCREEN_WIDTH() + (DEBUG ? MEMORY_SECTION_WIDTH : 0)), EMULATOR_SCREEN_HEIGHT());
-}
-
-
-void Ppu::drawText(const std::string& text, int x, int y) {
-    SDL_Color textColor = {0, 0, 0, 255};
-    SDL_Surface* surface = TTF_RenderText_Solid(font, text.c_str(), textColor);
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-    
-    int w, h;
-    SDL_QueryTexture(texture, NULL, NULL, &w, &h);
-    SDL_Rect rect = {x, y, w, h};
-    
-    SDL_RenderCopy(renderer, texture, NULL, &rect);
-    SDL_FreeSurface(surface);
-    SDL_DestroyTexture(texture);
 }
 
 
@@ -185,8 +100,6 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
         return;
     }
 
-    
-    
     for (int col = 0; col < GAMEBOY_WIDTH; col++) {
         Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
         Byte scrollx = memory.readByte(Mmu::SCX);
@@ -262,11 +175,11 @@ void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
     LCDStatus(memory);
 
     bool isLcdEnabled = memory.readByte(Mmu::LCDC) >> 7;
-    if (isLcdEnabled) {
-        scanlineCounter -= cycles;
-    } else {
+    if (!isLcdEnabled) {
         return;
     }
+    
+    scanlineCounter -= cycles;
 
     if (scanlineCounter <= 0) {
         memory.writeByte(Mmu::LY, memory.readByte(Mmu::LY) + 1);
@@ -277,9 +190,6 @@ void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
         if (currentLine == 144) {
             // set bit 0 of IF to request vblank interrupt
             memory.writeByte(memory.IF, memory.readByte(memory.IF) | 0x01);
-            drawFrame(cpu, memory);
-            SDL_Delay(16); // 16 ms = 60 fps (1/60)
-            // SDL_Delay(1000);
         } else if (currentLine > 153) {
             memory.writeByte(Mmu::LY, 0);
         } else if (currentLine < 144) {
@@ -287,98 +197,3 @@ void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
         }
     }
 }
-
-
-void Ppu::drawFrame(Cpu &cpu, Mmu &memory) {
-    SDL_Event event;
-
-    while (SDL_PollEvent(&event) != 0) {
-        if (event.type == SDL_QUIT) {
-            running = false;
-            // stop();
-        }
-    }
-    if (!paused) {
-
-        // functioning as the background at the moment
-        SDL_Color c = palette.getColor(DARK_GRAY);
-    
-        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-        SDL_RenderClear(renderer);
-    
-        if (DEBUG) {
-            displayMemory(cpu, memory);
-            SDL_Rect separator = {static_cast<int>(EMULATOR_SCREEN_WIDTH()), 0, 1, static_cast<int>(EMULATOR_SCREEN_HEIGHT())};
-            SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
-            SDL_RenderFillRect(renderer, &separator);
-        }
-    
-    
-        SDL_Rect gameboySection = {0, 0, static_cast<int>(EMULATOR_SCREEN_WIDTH()), static_cast<int>(EMULATOR_SCREEN_HEIGHT())};
-        SDL_UpdateTexture(gbTexture, NULL, frameBuffer, GAMEBOY_WIDTH * 3);
-        SDL_RenderCopy(renderer, gbTexture, NULL, &gameboySection);
-    
-    
-        // present the frame
-        SDL_RenderPresent(renderer);
-
-    } else {
-        SDL_RenderPresent(renderer);
-        SDL_Delay(100);
-    }
-    handleInput();
-
-}
-
-
-void Ppu::handleInput() {
-    const Byte* state = SDL_GetKeyboardState(NULL);
-
-    if (state[SDL_SCANCODE_1]) {
-        winScale = 1;
-        resize();
-    } else if (state[SDL_SCANCODE_2]) {
-        winScale = 2;
-        resize();
-    } else if (state[SDL_SCANCODE_3]) {
-        winScale = 3;
-        resize();
-    } else if (state[SDL_SCANCODE_P]) {
-        palette.selectedPalette = PaletteOptions::BlackWhite;
-    } else if (state[SDL_SCANCODE_G]) {
-        palette.selectedPalette = PaletteOptions::GameboyGreen;
-    } else if (state[SDL_SCANCODE_TAB]) {
-        DEBUG = !DEBUG;
-        resize();
-    } else if (state[SDL_SCANCODE_BACKSPACE]) {
-        printf("pausing\n");
-        paused = !paused;
-        SDL_Delay(100); // todo, change this so it applies to the gameboy, not the ppu only
-    }
-
-}
-
-
-void Ppu::displayMemory(Cpu &cpu, Mmu &memory) {
-    char buf[108];
-    uint lineHeight = 30;
-    uint x = EMULATOR_SCREEN_WIDTH() + 5; // +5 for a bit of left padding
-    Byte lcdcBin = memory.readByte(Mmu::LCDC);
-    Byte statBin = memory.readByte(Mmu::STAT);
-    Byte ly = memory.readByte(Mmu::LY);
-    snprintf(buf, sizeof(buf), "A: 0x%02X", cpu.A); drawText(buf, x, lineHeight * 0);
-    snprintf(buf, sizeof(buf), "F: 0x%02X", cpu.F); drawText(buf, x, lineHeight * 1);
-    snprintf(buf, sizeof(buf), "B: 0x%02X", cpu.B); drawText(buf, x, lineHeight * 2);
-    snprintf(buf, sizeof(buf), "C: 0x%02X", cpu.C); drawText(buf, x, lineHeight * 3);
-    snprintf(buf, sizeof(buf), "D: 0x%02X", cpu.D); drawText(buf, x, lineHeight * 4);
-    snprintf(buf, sizeof(buf), "E: 0x%02X", cpu.E); drawText(buf, x, lineHeight * 5);
-    snprintf(buf, sizeof(buf), "H: 0x%02X", cpu.H); drawText(buf, x, lineHeight * 6);
-    snprintf(buf, sizeof(buf), "L: 0x%02X", cpu.L); drawText(buf, x, lineHeight * 7);
-    snprintf(buf, sizeof(buf), "PC: 0x%02X", cpu.PC); drawText(buf, x, lineHeight * 8);
-    snprintf(buf, sizeof(buf), "SP: 0x%02X", cpu.SP); drawText(buf, x, lineHeight * 9);
-    snprintf(buf, sizeof(buf), "LCDC: 0b%s", std::bitset<8>(lcdcBin).to_string().c_str()); drawText(buf, x, lineHeight * 10); // draw the bits out here since I want to see each part's effect
-    snprintf(buf, sizeof(buf), "STAT: 0b%s", std::bitset<8>(statBin).to_string().c_str()); drawText(buf, x, lineHeight * 11); // draw the bits out here since I want to see each part's effect
-    snprintf(buf, sizeof(buf), "LY: 0x%02X", ly); drawText(buf, x, lineHeight * 12);
-
-}
-

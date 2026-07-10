@@ -18,7 +18,7 @@ Gameboy::Gameboy(const std::vector<Byte>& program) {
 void Gameboy::start() {
     cpu.reset();
     mmu.reset();
-    // ppu.init();
+    ppu.init();
 };
 
 
@@ -31,16 +31,17 @@ Gameboy::~Gameboy() {
 }
 
 
-void Gameboy::run() {
+void Gameboy::runFrame() {
     if (checksumPassed) {
-        while (ppu.running) {
+        uint frameCycles = 0;
+        while (frameCycles <= 70224) { // 70224 cycles per frame
             uint cycles = tickCpu();
             updateTimer(cycles);
             updateGraphics(cycles);
             handleInterrupts();
+            frameCycles += cycles;
         }
-    }
-    else {
+    } else {
         printf("checksum failed, game will not run.\n");
     }
 }
