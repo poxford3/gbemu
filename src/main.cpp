@@ -2,7 +2,7 @@
 #include <fstream>
 #include <vector>
 #include <SDL.h>
-#include "ppu.hpp"
+#include "emulator.hpp"
 #include "gameboy.hpp"
 #include "utils/file.hpp"
 #include "utils/bit.hpp"
@@ -10,13 +10,16 @@
 
 int main() {
 
-    std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/cpu_instrs.gb";
+    // std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/cpu_instrs.gb";
     // std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/small_rom.gb";
     // std::string path = "/Users/poxford3/Documents/coding/cpp/gbemu/assets/lin_rom.gb";
-    FileHandler fileH(path);
-    Gameboy gameboy (fileH.readFile());
+    // FileHandler fileH(path);
+    // Gameboy gameboy (fileH.readFile());
 
-    gameboy.run();
+    // gameboy.run();
+
+    Emulator emulator;
+    emulator.run();
 
     // std::string paths[8] = {
     //     "/Users/poxford3/Downloads/cpu_instrs/individual/01-special.gb",

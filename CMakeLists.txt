@@ -43,7 +43,7 @@ file(GLOB SRC_FILES src/*.cpp)
 
 
 
-add_executable(${PROJECT_NAME} ${SRC_FILES} )
+add_executable(${PROJECT_NAME} ${SRC_FILES})
 # ---
 target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
 target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address)

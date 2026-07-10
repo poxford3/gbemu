@@ -88,6 +88,7 @@ class Mmu {
         Byte readByte(Word address);  
         int8_t readInt(Word address);  
         
+        std::vector<Byte> entireRom; // max ROM size is 2MB, allocating that
         private:
         // https://gbdev.io/pandocs/The_Cartridge_Header.html#0147--cartridge-type
         void handleRomWrite(Word address, Byte value);
@@ -98,7 +99,6 @@ class Mmu {
 
         Byte MBCType = 0; // type of memory bank controller, value found at 0x147 in ROM header
 
-        std::vector<Byte> entireRom; // max ROM size is 2MB, allocating that
         Byte currentRomBank = 1;
         bool bankingMode = false;
         Byte ROMSize = 0; // 0x148 in ROM header

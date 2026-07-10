@@ -1,4 +1,3 @@
-#include <nfd.h>
 #include "ppu.hpp"
 #include "gameboy.hpp"
 #include "utils/bit.hpp"
@@ -322,20 +321,7 @@ void Ppu::drawFrame(Cpu &cpu, Mmu &memory) {
     
         // present the frame
         SDL_RenderPresent(renderer);
-    
-        if (1==2) {
-            FileHandler fileH = getFileFromUser();
-            std::vector<Byte> rom = fileH.readFile();
-    
-            if (rom.size() > 1) {
-                Gameboy gameboy(rom);
-            }
-        }
-    
-        
-        // if (SDL_PollEvent(&event) == SDL_MouseButtonEvent(&event)) {
-            //     // todo add in clicking to open NFD
-            // }
+
     } else {
         SDL_RenderPresent(renderer);
         SDL_Delay(100);
@@ -396,24 +382,3 @@ void Ppu::displayMemory(Cpu &cpu, Mmu &memory) {
 
 }
 
-
-FileHandler Ppu::getFileFromUser() {
-    nfdchar_t* outPath = nullptr;
-    nfdresult_t result = NFD_OpenDialog(&outPath, NULL, NULL, NULL);
-
-    if (result == NFD_OKAY) {
-        // std::string filePath(outPath);
-        std::cout << "successfully got file path: " << outPath << std::endl;
-        puts(outPath);
-        std::string str_filePath(outPath);
-        free(outPath);
-        return FileHandler(str_filePath);
-
-    } else if (result == NFD_CANCEL) {
-        std::cout << "User canceled the dialog." << std::endl;
-    } else {
-        std::cerr << "Error: " << NFD_GetError() << std::endl;
-    }
-    // return FileHandler(filePath);
-    return FileHandler("");
-}

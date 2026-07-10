@@ -18,7 +18,7 @@ Gameboy::Gameboy(const std::vector<Byte>& program) {
 void Gameboy::start() {
     cpu.reset();
     mmu.reset();
-    ppu.init();
+    // ppu.init();
 };
 
 

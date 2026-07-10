@@ -16,8 +16,8 @@ std::vector<Byte> FileHandler::readFile() {
         return buffer;
     }
 
-    char byte;
-    while (file.read(reinterpret_cast<char*>(&byte), 1)) {
+    Byte byte;
+    while (file.read(reinterpret_cast<char*>(&byte), sizeof(byte))) {
         buffer.push_back(byte);
     }
     file.close();

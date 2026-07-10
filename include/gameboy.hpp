@@ -19,12 +19,12 @@ class Gameboy {
         void start();
         void stop();
         void run();
-        
-    private:
         Cpu cpu;
         Mmu mmu;
         Ppu ppu;
         Apu apu;
+        
+    private:
 
         uint tickCpu();
         void updateGraphics(uint cycles);
