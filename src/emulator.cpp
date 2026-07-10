@@ -138,9 +138,7 @@ void Emulator::run() {
 
 void Emulator::handleInput() {
     const Byte* state = SDL_GetKeyboardState(NULL);
-
-    if (state[SDL_SCANCODE_F]) {
-    }
+    // needs some work
 }
 
 

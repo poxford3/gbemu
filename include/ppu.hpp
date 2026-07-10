@@ -22,7 +22,6 @@ class Ppu {
         Ppu();
         ~Ppu();
         void init();
-        void stop();
 
         uint winScale = 1; // used to change the size of the gameboy screen
         uint EMULATOR_SCREEN_WIDTH() const { return GAMEBOY_WIDTH * winScale; };
@@ -42,7 +41,6 @@ class Ppu {
     private:
         void loadScanline(Mmu &memory, Byte currentLine);
         void LCDStatus(Mmu &memory);
-        void drawFrame(Cpu &cpu, Mmu &memory);
 };
 
 #endif

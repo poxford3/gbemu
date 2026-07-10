@@ -89,7 +89,7 @@ class Mmu {
         int8_t readInt(Word address);  
         
         std::vector<Byte> entireRom; // max ROM size is 2MB, allocating that
-        private:
+    private:
         // https://gbdev.io/pandocs/The_Cartridge_Header.html#0147--cartridge-type
         void handleRomWrite(Word address, Byte value);
         void getMBCType(Byte bank);

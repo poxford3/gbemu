@@ -17,7 +17,6 @@ class Gameboy {
         Gameboy(const std::vector<Byte>& program);
         ~Gameboy();
         void start();
-        void stop();
         void runFrame();
         Cpu cpu;
         Mmu mmu;
@@ -25,7 +24,6 @@ class Gameboy {
         Apu apu;
         
     private:
-
         uint tickCpu();
         void updateGraphics(uint cycles);
         void updateTimer(uint cycles);

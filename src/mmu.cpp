@@ -268,7 +268,6 @@ void Mmu::handleRomWrite(Word address, Byte value) {
 
 
 void Mmu::writeByte(Word address, Byte value) {
-
     if (address == SC) {
         if (value == 0x81) {
             printf("%c", ioRegisters[SB - 0xFF00]);

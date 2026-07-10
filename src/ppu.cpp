@@ -2,19 +2,12 @@
 #include "gameboy.hpp"
 #include "utils/bit.hpp"
 
-Ppu::Ppu() {
-
-}
+Ppu::Ppu() {}
 
 
 void Ppu::init() {
     palette = BlackWhite;
     // palette = GameboyGreen;
-}
-
-
-void Ppu::stop() {
-
 }
 
 
@@ -151,22 +144,7 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
         frameBuffer[rowIdx + 0] = c.r; // r
         frameBuffer[rowIdx + 1] = c.g; // g
         frameBuffer[rowIdx + 2] = c.b; // b
-    }
-
-
-    // for (int x = 0; x < GAMEBOY_WIDTH; x++) {
-    //     uint index = (currentLine * GAMEBOY_WIDTH + x) * 3; 
-    //     if (x % 2 == 0 && currentLine % 2 == 0) {
-    //         frameBuffer[index + 0] = 0xFF; // r
-    //         frameBuffer[index + 1] = 0x00; // g
-    //         frameBuffer[index + 2] = 0xFF; // b purple
-    //     } else {
-    //         frameBuffer[index + 0] = 0x00; // r
-    //         frameBuffer[index + 1] = 0x00; // g
-    //         frameBuffer[index + 2] = 0x00; // b black
-    //     }
-    // }
-    
+    }    
 }
 
 

@@ -22,13 +22,7 @@ void Gameboy::start() {
 };
 
 
-void Gameboy::stop() {
-    ppu.stop();
-}
-
-Gameboy::~Gameboy() {
-    stop();
-}
+Gameboy::~Gameboy() {}
 
 
 void Gameboy::runFrame() {

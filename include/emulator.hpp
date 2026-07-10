@@ -28,8 +28,6 @@ class Emulator {
         SDL_Texture* gbTexture;
         TTF_Font* font;
         SDL_Renderer* GetRenderer();
-        // Gameboy gameboy;
-        // std::unique_ptr<Gameboy> gameboy;
         std::optional<Gameboy> gameboy;
 
         void handleInput();
