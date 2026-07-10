@@ -22,11 +22,13 @@ class Ppu {
         Palette palette;
         
         bool running;
+        bool paused = false; // used to pause the emulator when debugging
         int scanlineCounter;
         
         Ppu();
         ~Ppu();
         void init();
+        void stop();
         SDL_Renderer* GetRenderer();
         void resize();
         // module rendering

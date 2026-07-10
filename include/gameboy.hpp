@@ -15,6 +15,7 @@ class Gameboy {
 
         Gameboy();
         Gameboy(const std::vector<Byte>& program);
+        ~Gameboy();
         void start();
         void stop();
         void run();
@@ -32,7 +33,6 @@ class Gameboy {
 
         bool checksum();
         void testWithJson(std::string path);
-
 };
 
 #endif

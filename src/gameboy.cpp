@@ -23,7 +23,11 @@ void Gameboy::start() {
 
 
 void Gameboy::stop() {
-    // todo
+    ppu.stop();
+}
+
+Gameboy::~Gameboy() {
+    stop();
 }
 
 

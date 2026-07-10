@@ -98,7 +98,7 @@ class Mmu {
 
         Byte MBCType = 0; // type of memory bank controller, value found at 0x147 in ROM header
 
-        Byte entireRom[0x18000]; // max ROM size is 2MB, allocating that
+        std::vector<Byte> entireRom; // max ROM size is 2MB, allocating that
         Byte currentRomBank = 1;
         bool bankingMode = false;
         Byte ROMSize = 0; // 0x148 in ROM header

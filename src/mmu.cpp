@@ -26,7 +26,7 @@ void Mmu::loadRom(const std::vector<Byte>& program) {
     memcpy(title.data(), program.data() + 0x134, 16); // set the title, which comes from 0x134 to 0x143 in ROM header
     printf("title %s\n", title.c_str());
 
-    std::copy(program.begin(), program.end(), entireRom);
+    entireRom = program;
     // pandocs pg 164
     getMBCType(program[0x147]);
     // pandocs pg 156
@@ -160,7 +160,7 @@ void Mmu::swapRomBank(Byte bank) {
     int newStart = 0x4000 * bank; // can also do bank << 14
 
     // exclusive bound (everything up to 0x4000 for new end)
-    std::copy(entireRom + newStart, entireRom + newStart + 0x4000, romBankN);
+    std::copy(entireRom.begin() + newStart, entireRom.begin() + newStart + 0x4000, romBankN);
 }
 
 
@@ -268,6 +268,16 @@ void Mmu::handleRomWrite(Word address, Byte value) {
 
 
 void Mmu::writeByte(Word address, Byte value) {
+
+    if (address == SC) {
+        if (value == 0x81) {
+            printf("%c", ioRegisters[SB - 0xFF00]);
+            fflush(stdout);
+            ioRegisters[SC - 0xFF00] = 0x00;
+            return;
+        }
+    }
+
     if (address >= 0x0000 && address <= 0x7FFF) {
         handleRomWrite(address, value);
     } else if (address >= 0x8000 && address <= 0x9FFF) {
@@ -299,12 +309,6 @@ void Mmu::writeByte(Word address, Byte value) {
 
 
 Byte Mmu::readByte(Word address) {
-    if (ioRegisters[0xFF02 - 0xFF00] == 0x81) {
-        char c = ioRegisters[0xFF01 - 0xFF00];
-        printf("%c", c);
-        fflush(stdout);
-        ioRegisters[0xFF02 - 0xFF00] = 0x00;
-    }
 
     if (address >= 0xFF00 && address <= 0xFF7F) {
         return ioRegisters[address - 0xFF00];

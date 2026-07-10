@@ -55,21 +55,32 @@ void Ppu::init() {
         printf("error loading font: %s\n", TTF_GetError());
     }
 
-    // palette = BlackWhite;
-    palette = GameboyGreen;
+    palette = BlackWhite;
+    // palette = GameboyGreen;
  
     running = true;
 }
 
 
-Ppu::~Ppu() {
+void Ppu::stop() {
+    running = false;
+    TTF_CloseFont(font);    
     TTF_Quit();
+    SDL_DestroyTexture(gbTexture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    gbTexture = NULL;
     window = NULL;
     renderer = NULL;
 
     SDL_Quit();
+}
+
+
+Ppu::~Ppu() {
+    if (renderer != nullptr) {
+        stop();
+    }
 }
 
 
@@ -99,19 +110,20 @@ void Ppu::drawText(const std::string& text, int x, int y) {
 
 
 void Ppu::LCDStatus(Mmu &memory) {
+    // http://www.codeslinger.co.uk/pages/projects/gameboy/lcd.html
     Byte lcdStat = memory.readByte(Mmu::STAT);
     Byte lcdc = memory.readByte(Mmu::LCDC);
     if (!(getBit(lcdc, 7))) { // if the 7th bit of LCDC (LCD Enable) if false
         scanlineCounter = 456;
         memory.writeByte(Mmu::LY, 0);
-        lcdStat &= 252;
+        lcdStat &= 0xFC; // 0 out the bottom 2 bits
         setBit(lcdStat, 0);
         memory.writeByte(Mmu::STAT, lcdStat);
         return;
     }
 
     Byte currentLine = memory.readByte(Mmu::LY);
-    Byte currentMode = lcdStat & 0x3;
+    Byte currentMode = lcdStat & 0x3; // PPU mode (oam, drawing, hblank, etc)
 
     Byte mode = 0;
     bool intReq = false;
@@ -130,7 +142,7 @@ void Ppu::LCDStatus(Mmu &memory) {
             mode = 2;
             lcdStat = setBit(lcdStat, 1); // set the 1th bit to 1
             lcdStat = resetBit(lcdStat, 0); // set the 0th bit to 0
-            intReq = getBit(lcdStat, 5); // interrupt request equal to 5th bit of STAT
+            intReq = getBit(lcdStat, 5); // interrupt request equal to 5th bit of STAT (Mode 2 select)
         } else if (scanlineCounter >= mode3bounds) {
             // mode 3
             mode = 3;
@@ -141,13 +153,13 @@ void Ppu::LCDStatus(Mmu &memory) {
             mode = 0;
             lcdStat = resetBit(lcdStat, 0); // set the 0th bit to 0
             lcdStat = resetBit(lcdStat, 1); // set the 1th bit to 0
-            intReq = getBit(lcdStat, 5); // interrupt request equal to 5th bit of STAT
+            intReq = getBit(lcdStat, 5); // interrupt request equal to 5th bit of STAT (Mode 2 select)
         }
         
         // if new mode, interrupt flag set
         if (intReq && (mode != currentMode)) {
             Byte IFreg = memory.readByte(Mmu::IF);
-            IFreg = setBit(IFreg, 1); // set the 1th bit to 1
+            IFreg = setBit(IFreg, 1); // set the 1th bit to 1 (LCD bit)
             memory.writeByte(Mmu::IF, IFreg);
         }
 
@@ -174,53 +186,75 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
         return;
     }
 
-    Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
-    Byte scrollx = memory.readByte(Mmu::SCX);
-    Byte scrolly = memory.readByte(Mmu::SCY);
-    Word tileMapStart = (getBit(lcdc, 3) == 1) ? 0x9c00 : 0x9800;
-    Word tileDataStart = (getBit(lcdc, 4) == 1) ? 0x8000 : 0x8800;
-    Byte currentTileRow = ((currentLine + scrolly) / 8) % 32; // wraps back around at the end of the 32x32 block
-    Byte currentTileCol = ((currentLine + scrollx));
+    
+    
+    for (int col = 0; col < GAMEBOY_WIDTH; col++) {
+        Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
+        Byte scrollx = memory.readByte(Mmu::SCX);
+        Byte scrolly = memory.readByte(Mmu::SCY);
+        Word bgPalette = memory.readByte(Mmu::BGP);
+        Word tileMapStart = (getBit(lcdc, 3) == 1) ? 0x9c00 : 0x9800;
+        Word tileDataStart = (getBit(lcdc, 4) == 1) ? 0x8000 : 0x8800;
+    
+        Byte currentTileRow = ((currentLine + scrolly) / 8) % 32; // wraps back around at the end of the 32x32 block
+        Byte currentTileCol = ((col + scrollx) / 8) % 32; // gets the location in the window
 
-    Word tileMapAddress = tileMapStart + (currentTileRow * 32) + currentTileCol; // 
-    Byte tileId = memory.readByte(tileMapAddress);
-
-    Word bgPalette = memory.readByte(Mmu::BGP);
-    Byte pal00 = bgPalette & 0b11;
-    Byte pal01 = (bgPalette >> 2) & 0b11;
-    Byte pal10 = (bgPalette >> 4) & 0b11;
-    Byte pal11 = (bgPalette >> 6) & 0b11;
-
-    // formula used to determine color value from bg palette
-    // shifting over 2 bits at a time
-    Byte colorVal = bgPalette << (0b11 * 2) & 0b11;
+        Word tileMapAddress = tileMapStart + (currentTileRow * 32) + currentTileCol; // tile map address from the given row and col, offset by the tile map start
+        Byte tileId = memory.readByte(tileMapAddress);
+        Byte lo = memory.readByte(tileId); // low byte of the tile id
+        Byte hi = memory.readByte(tileId + 1); // high byte of the tile id
 
 
-    Byte lo = memory.readByte(tileDataStart + currentLine); // low byte of the tile map data
-    Byte hi = memory.readByte(tileDataStart + currentLine + 1); // high byte
-    // printf("hi 0x%02X lo 0x%02X, ", hi, lo);
+        // formula used to determine color value from bg palette
+        // shifting over 2 bits at a time (change the 2 to the number of bits shifted)
+        Byte colorVal = bgPalette << (0b11 * 2) & 0b11;
 
-    std::bitset<16> rowVal;
-    // from thethiefmaster on emu discord
-    for (int i = 0; i < 8; i++) {
-        rowVal.set(i*2, getBit(lo, i));
-        rowVal.set(i*2+1, getBit(hi, i));
-    }
-    // printf("rowval 0x%02X\n", rowVal);
-
-
-    for (int x = 0; x < GAMEBOY_WIDTH; x++) {
-        uint index = (currentLine * GAMEBOY_WIDTH + x) * 3; 
-        if (x % 2 == 0 && currentLine % 2 == 0) {
-            frameBuffer[index + 0] = 0xFF; // r
-            frameBuffer[index + 1] = 0x00; // g
-            frameBuffer[index + 2] = 0xFF; // b purple
-        } else {
-            frameBuffer[index + 0] = 0x00; // r
-            frameBuffer[index + 1] = 0x00; // g
-            frameBuffer[index + 2] = 0x00; // b black
+        std::bitset<16> rowVal;
+        // from thethiefmaster on emu discord
+        for (int i = 0; i < 8; i++) {
+            rowVal.set(i*2, getBit(lo, i));
+            rowVal.set(i*2+1, getBit(hi, i));
         }
+        uint rowIdx = (currentLine * GAMEBOY_WIDTH + col) * 3; 
+
+        Byte colorIndex = rowVal[7 - (col % 8)] | (rowVal[7 - (col % 8) + 1] << 1);
+        SDL_Color c;
+        switch (colorIndex) {
+            case 0:
+                c = palette.getColor(WHITE);
+                break;
+            case 1:
+                c = palette.getColor(LIGHT_GRAY);
+                break;
+            case 2:
+                c = palette.getColor(DARK_GRAY);
+                break;
+            case 3:
+                c = palette.getColor(BLACK);
+                break;
+            default:
+                c = palette.getColor(WHITE);
+                break;
+        }
+        frameBuffer[rowIdx + 0] = c.r; // r
+        frameBuffer[rowIdx + 1] = c.g; // g
+        frameBuffer[rowIdx + 2] = c.b; // b
     }
+
+
+    // for (int x = 0; x < GAMEBOY_WIDTH; x++) {
+    //     uint index = (currentLine * GAMEBOY_WIDTH + x) * 3; 
+    //     if (x % 2 == 0 && currentLine % 2 == 0) {
+    //         frameBuffer[index + 0] = 0xFF; // r
+    //         frameBuffer[index + 1] = 0x00; // g
+    //         frameBuffer[index + 2] = 0xFF; // b purple
+    //     } else {
+    //         frameBuffer[index + 0] = 0x00; // r
+    //         frameBuffer[index + 1] = 0x00; // g
+    //         frameBuffer[index + 2] = 0x00; // b black
+    //     }
+    // }
+    
 }
 
 
@@ -262,45 +296,52 @@ void Ppu::drawFrame(Cpu &cpu, Mmu &memory) {
     while (SDL_PollEvent(&event) != 0) {
         if (event.type == SDL_QUIT) {
             running = false;
+            // stop();
         }
     }
+    if (!paused) {
 
-    // functioning as the background at the moment
-    SDL_Color c = palette.getColor(DARK_GRAY);
-
-    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-    SDL_RenderClear(renderer);
-
-    if (DEBUG) {
-        displayMemory(cpu, memory);
-        SDL_Rect separator = {static_cast<int>(EMULATOR_SCREEN_WIDTH()), 0, 1, static_cast<int>(EMULATOR_SCREEN_HEIGHT())};
-        SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
-        SDL_RenderFillRect(renderer, &separator);
-    }
-
-
-    SDL_Rect gameboySection = {0, 0, static_cast<int>(EMULATOR_SCREEN_WIDTH()), static_cast<int>(EMULATOR_SCREEN_HEIGHT())};
-    SDL_UpdateTexture(gbTexture, NULL, frameBuffer, GAMEBOY_WIDTH * 3);
-    SDL_RenderCopy(renderer, gbTexture, NULL, &gameboySection);
-
-
-    // present the frame
-    SDL_RenderPresent(renderer);
-
-    if (1==2) {
-        FileHandler fileH = getFileFromUser();
-        std::vector<Byte> rom = fileH.readFile();
-
-        if (rom.size() > 1) {
-            Gameboy gameboy(rom);
+        // functioning as the background at the moment
+        SDL_Color c = palette.getColor(DARK_GRAY);
+    
+        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+        SDL_RenderClear(renderer);
+    
+        if (DEBUG) {
+            displayMemory(cpu, memory);
+            SDL_Rect separator = {static_cast<int>(EMULATOR_SCREEN_WIDTH()), 0, 1, static_cast<int>(EMULATOR_SCREEN_HEIGHT())};
+            SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
+            SDL_RenderFillRect(renderer, &separator);
         }
+    
+    
+        SDL_Rect gameboySection = {0, 0, static_cast<int>(EMULATOR_SCREEN_WIDTH()), static_cast<int>(EMULATOR_SCREEN_HEIGHT())};
+        SDL_UpdateTexture(gbTexture, NULL, frameBuffer, GAMEBOY_WIDTH * 3);
+        SDL_RenderCopy(renderer, gbTexture, NULL, &gameboySection);
+    
+    
+        // present the frame
+        SDL_RenderPresent(renderer);
+    
+        if (1==2) {
+            FileHandler fileH = getFileFromUser();
+            std::vector<Byte> rom = fileH.readFile();
+    
+            if (rom.size() > 1) {
+                Gameboy gameboy(rom);
+            }
+        }
+    
+        
+        // if (SDL_PollEvent(&event) == SDL_MouseButtonEvent(&event)) {
+            //     // todo add in clicking to open NFD
+            // }
+    } else {
+        SDL_RenderPresent(renderer);
+        SDL_Delay(100);
     }
-
     handleInput();
 
-    // if (SDL_PollEvent(&event) == SDL_MouseButtonEvent(&event)) {
-    //     // todo add in clicking to open NFD
-    // }
 }
 
 
@@ -316,6 +357,17 @@ void Ppu::handleInput() {
     } else if (state[SDL_SCANCODE_3]) {
         winScale = 3;
         resize();
+    } else if (state[SDL_SCANCODE_P]) {
+        palette.selectedPalette = PaletteOptions::BlackWhite;
+    } else if (state[SDL_SCANCODE_G]) {
+        palette.selectedPalette = PaletteOptions::GameboyGreen;
+    } else if (state[SDL_SCANCODE_TAB]) {
+        DEBUG = !DEBUG;
+        resize();
+    } else if (state[SDL_SCANCODE_BACKSPACE]) {
+        printf("pausing\n");
+        paused = !paused;
+        SDL_Delay(100); // todo, change this so it applies to the gameboy, not the ppu only
     }
 
 }
