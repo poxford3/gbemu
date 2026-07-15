@@ -9,6 +9,7 @@ Emulator::Emulator() {
     init();
 }
 
+
 Emulator::~Emulator() {
     TTF_CloseFont(font);    
     TTF_Quit();
@@ -21,6 +22,7 @@ Emulator::~Emulator() {
 
     SDL_Quit();
 }
+
 
 void Emulator::init() {
 
@@ -64,7 +66,7 @@ SDL_Renderer* Emulator::GetRenderer() {
 }
 
 
-void Emulator::createGameboyTexture() {
+void Emulator::createGameboyTextures() {
     if (gameboy.has_value()) {
         gbTexture = SDL_CreateTexture(
                             renderer,
@@ -77,9 +79,22 @@ void Emulator::createGameboyTexture() {
         if (gbTexture == NULL) {
             printf("error initializing texture, SDL error %s\n", SDL_GetError());
         }
+
+        tileDataTexture = SDL_CreateTexture(
+                            renderer,
+                            SDL_PIXELFORMAT_RGB24,
+                            SDL_TEXTUREACCESS_STREAMING,
+                            gameboy->ppu.TILEDATA_WIDTH,
+                            gameboy->ppu.TILEDATA_HEIGHT
+                        );
+
+        if (tileDataTexture == NULL) {
+            printf("error initializing texture, SDL error %s\n", SDL_GetError());
+        }
     }
 }
 
+int frameCounter = 0;
 void Emulator::run() {
     while (running) {
         SDL_Event event;
@@ -94,7 +109,7 @@ void Emulator::run() {
                             if (sizeof(file) > 0) { // todo, check what happens when a user hits cancel, and if file isn't the right type (extension)
                                 printf("no file selected, please select a file to run the emulator\n");
                                 gameboy.emplace(file.readFile());
-                                createGameboyTexture();
+                                createGameboyTextures();
                             }
                     } else if (event.key.keysym.scancode == SDL_SCANCODE_P) {
                         if (gameboy.has_value()) {
@@ -117,24 +132,45 @@ void Emulator::run() {
         if (gameboy.has_value()) {
             if (!paused) {
                 gameboy->runFrame();
+                gameboy->ppu.loadTileData(gameboy->mmu);
+                frameCounter++;
             }
 
+            // if (frameCounter == 60) {
+            //     printf("VRAM Dump:\n");
+            //     for (int i = 0; i < 0x1800; i++) {
+            //         printf("%02X ", gameboy->mmu.VRam[i]);
+            //         if ((i + 1) % 16 == 0) printf("\n");
+            //     }
+            // }
+
+
+            uint widthForMemory = gameboy->ppu.EMULATOR_TILEDATA_WIDTH();
+            uint heightFormemory = gameboy->ppu.EMULATOR_TILEDATA_HEIGHT();
+            // uint widthForMemory = gameboy->ppu.EMULATOR_SCREEN_WIDTH();
+            // uint heightFormemory = gameboy->ppu.EMULATOR_SCREEN_HEIGHT();
+
             if (true) { // TODO REPLACE WITH DEBUG SOMEWHERE
-                displayMemory(gameboy->cpu, gameboy->mmu);
-                SDL_Rect separator = {static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_WIDTH()), 0, 1, static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_HEIGHT())};
+                displayMemory(gameboy->cpu, gameboy->mmu, widthForMemory);
+                SDL_Rect separator = {static_cast<int>(widthForMemory), 0, 1, static_cast<int>(heightFormemory)};
                 SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
                 SDL_RenderFillRect(renderer, &separator);
             }
 
-            SDL_Rect gameboySection = {0, 0, static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_WIDTH()), static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_HEIGHT())};
-            SDL_UpdateTexture(gbTexture, NULL, gameboy->ppu.frameBuffer.data(), gameboy->ppu.GAMEBOY_WIDTH * 3);
-            SDL_RenderCopy(renderer, gbTexture, NULL, &gameboySection);
+            // SDL_Rect gameboySection = {0, 0, static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_WIDTH()), static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_HEIGHT())};
+            // SDL_UpdateTexture(gbTexture, NULL, gameboy->ppu.frameBuffer.data(), gameboy->ppu.GAMEBOY_WIDTH * 3);
+            // SDL_RenderCopy(renderer, gbTexture, NULL, &gameboySection);
+
+            SDL_Rect tileDataSection = {0, 0, static_cast<int>(gameboy->ppu.EMULATOR_TILEDATA_WIDTH()), static_cast<int>(gameboy->ppu.EMULATOR_TILEDATA_HEIGHT())};
+            SDL_UpdateTexture(tileDataTexture, NULL, gameboy->ppu.tileData.data(), gameboy->ppu.TILEDATA_WIDTH * 3);
+            SDL_RenderCopy(renderer, tileDataTexture, NULL, &tileDataSection);
         }
 
         SDL_RenderPresent(renderer);
         SDL_Delay(16); // 16 ms = 60 fps
     }
 }
+
 
 void Emulator::handleInput() {
     const Byte* state = SDL_GetKeyboardState(NULL);
@@ -157,13 +193,16 @@ void Emulator::drawText(const std::string& text, int x, int y) {
 }
 
 
-void Emulator::displayMemory(Cpu &cpu, Mmu &memory) {
-    char buf[108];
+void Emulator::displayMemory(Cpu &cpu, Mmu &memory, uint width) {
+    int numItems = 13;
+    char buf[numItems * 9];
     uint lineHeight = 30;
-    uint x = gameboy->ppu.EMULATOR_SCREEN_WIDTH() + 5; // +5 for a bit of left padding
+    uint x = width + 5; // +5 for a bit of left padding
     Byte lcdcBin = memory.readByte(Mmu::LCDC);
     Byte statBin = memory.readByte(Mmu::STAT);
     Byte ly = memory.readByte(Mmu::LY);
+    Byte tile1 = memory.readByte(0x8000);
+    Byte tile2 = memory.readByte(0x8001);
     snprintf(buf, sizeof(buf), "A: 0x%02X", cpu.A); drawText(buf, x, lineHeight * 0);
     snprintf(buf, sizeof(buf), "F: 0x%02X", cpu.F); drawText(buf, x, lineHeight * 1);
     snprintf(buf, sizeof(buf), "B: 0x%02X", cpu.B); drawText(buf, x, lineHeight * 2);
@@ -172,8 +211,8 @@ void Emulator::displayMemory(Cpu &cpu, Mmu &memory) {
     snprintf(buf, sizeof(buf), "E: 0x%02X", cpu.E); drawText(buf, x, lineHeight * 5);
     snprintf(buf, sizeof(buf), "H: 0x%02X", cpu.H); drawText(buf, x, lineHeight * 6);
     snprintf(buf, sizeof(buf), "L: 0x%02X", cpu.L); drawText(buf, x, lineHeight * 7);
-    snprintf(buf, sizeof(buf), "PC: 0x%02X", cpu.PC); drawText(buf, x, lineHeight * 8);
-    snprintf(buf, sizeof(buf), "SP: 0x%02X", cpu.SP); drawText(buf, x, lineHeight * 9);
+    snprintf(buf, sizeof(buf), "PC: 0x%04X", cpu.PC); drawText(buf, x, lineHeight * 8);
+    snprintf(buf, sizeof(buf), "SP: 0x%04X", cpu.SP); drawText(buf, x, lineHeight * 9);
     snprintf(buf, sizeof(buf), "LCDC: 0b%s", std::bitset<8>(lcdcBin).to_string().c_str()); drawText(buf, x, lineHeight * 10); // draw the bits out here since I want to see each part's effect
     snprintf(buf, sizeof(buf), "STAT: 0b%s", std::bitset<8>(statBin).to_string().c_str()); drawText(buf, x, lineHeight * 11); // draw the bits out here since I want to see each part's effect
     snprintf(buf, sizeof(buf), "LY: 0x%02X", ly); drawText(buf, x, lineHeight * 12);

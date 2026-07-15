@@ -6,6 +6,7 @@ Ppu::Ppu() {}
 
 
 void Ppu::init() {
+    tileData.fill(0);
     palette = BlackWhite;
     // palette = GameboyGreen;
 }
@@ -125,21 +126,11 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
         Byte colorIndex = rowVal[7 - (col % 8)] | (rowVal[7 - (col % 8) + 1] << 1);
         SDL_Color c;
         switch (colorIndex) {
-            case 0:
-                c = palette.getColor(WHITE);
-                break;
-            case 1:
-                c = palette.getColor(LIGHT_GRAY);
-                break;
-            case 2:
-                c = palette.getColor(DARK_GRAY);
-                break;
-            case 3:
-                c = palette.getColor(BLACK);
-                break;
-            default:
-                c = palette.getColor(WHITE);
-                break;
+            case 0: c = palette.getColor(WHITE);        break;
+            case 1: c = palette.getColor(LIGHT_GRAY);   break;
+            case 2: c = palette.getColor(DARK_GRAY);    break;
+            case 3: c = palette.getColor(BLACK);        break;
+            default: c = palette.getColor(WHITE);       break;
         }
         frameBuffer[rowIdx + 0] = c.r; // r
         frameBuffer[rowIdx + 1] = c.g; // g
@@ -173,5 +164,46 @@ void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
         } else if (currentLine < 144) {
             loadScanline(memory, currentLine);
         }
+    }
+}
+
+
+void Ppu::loadTileData(Mmu &memory) {
+    Word tileDataStart = 0x8000; // tile block 0 starts at $8000
+    const int tilesPerRow = 16;
+    // Word tileDataStart = 0x82A0; // testing
+    Byte bgPalette = memory.readByte(Mmu::BGP);
+    // printf("tile 1 and 2: 0x%02x 0x%02x\n", memory.VRam[0], memory.VRam[1]);
+    for (int tile = 0; tile < 16; tile++) { // 384 tiles across the 3 blocks ($8000 - $97FF => 6144 bytes / 16 bytes per tile = 384)
+        Word tileAddress = tileDataStart + (tile * 16); // tiles 16 bytes wide
+        int tileX = (tile % tilesPerRow) * 8;
+        int tileY = (tile / tilesPerRow) * 8;
+        // Word tileAddress = tileDataStart;
+        for (int row = 0; row < 8; row++) {
+            Byte lo = memory.readByte(tileAddress + (row * 2)); // low byte of the tile row
+            Byte hi = memory.readByte(tileAddress + (row * 2) + 1); // high byte of the tile row
+            // printf("0x%02x lo\t0x%02x hi\n", lo, hi);
+            for (int col = 0; col < 8; col++) {
+                Byte colorIndex = getBit(lo, 7 - col) | (getBit(hi, 7 - col) << 1); // gets the nth bit for hi and lo, shifts the hi bit 1 and ORs them to get the color index
+                // printf("%d ", colorIndex);
+                SDL_Color c;
+                switch (colorIndex) {
+                    case 0: c = palette.getColor(WHITE);        break;
+                    case 1: c = palette.getColor(LIGHT_GRAY);   break;
+                    case 2: c = palette.getColor(DARK_GRAY);    break;
+                    case 3: c = palette.getColor(BLACK);        break;
+                    default: c = palette.getColor(WHITE);       break;
+                }
+                int px = tileX + col;
+                int py = tileY + row;
+                int index = (py * tilesPerRow * 8 + px) * 3;
+
+                tileData[index]     = c.r;
+                tileData[index + 1] = c.g;
+                tileData[index + 2] = c.b;
+            }
+            // printf("\n");
+        }
+        // printf("\n");
     }
 }

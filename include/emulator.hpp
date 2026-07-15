@@ -26,13 +26,14 @@ class Emulator {
         SDL_Window* window;
         SDL_Renderer* renderer;
         SDL_Texture* gbTexture;
+        SDL_Texture* tileDataTexture;
         TTF_Font* font;
         SDL_Renderer* GetRenderer();
         std::optional<Gameboy> gameboy;
 
         void handleInput();
-        void createGameboyTexture();
-        void displayMemory(Cpu &cpu, Mmu &memory);
+        void createGameboyTextures();
+        void displayMemory(Cpu &cpu, Mmu &memory, uint width);
         void drawText(const std::string& text, int x, int y);
 
 };

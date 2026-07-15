@@ -143,7 +143,7 @@ Byte Cpu::loadByte(Mmu &memory) {
 
 int8_t Cpu::loadInt(Mmu &memory) {
     int8_t value = memory.readInt(PC);
-    // printf("PC: 0x%02X, IE: %02X\n", PC, memory.interruptEnableRegister);
+    // printf("PC: 0x%04X, IE: %02X\n", PC, memory.interruptEnableRegister);
     PC++;
     return value;
 }

@@ -280,6 +280,7 @@ void Mmu::writeByte(Word address, Byte value) {
     if (address >= 0x0000 && address <= 0x7FFF) {
         handleRomWrite(address, value);
     } else if (address >= 0x8000 && address <= 0x9FFF) {
+        // printf("vram write at 0x%04x value: 0x%02x\n", address, value);
         VRam[address - 0x8000] = value;
     } else if (address >= 0xA000 && address <= 0xBFFF) {
         if (RAMEnabled) { // check if external RAM is enabled
