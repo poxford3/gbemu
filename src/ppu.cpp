@@ -174,7 +174,7 @@ void Ppu::loadTileData(Mmu &memory) {
     // Word tileDataStart = 0x82A0; // testing
     Byte bgPalette = memory.readByte(Mmu::BGP);
     // printf("tile 1 and 2: 0x%02x 0x%02x\n", memory.VRam[0], memory.VRam[1]);
-    for (int tile = 0; tile < 16; tile++) { // 384 tiles across the 3 blocks ($8000 - $97FF => 6144 bytes / 16 bytes per tile = 384)
+    for (int tile = 0; tile < 384; tile++) { // 384 tiles across the 3 blocks ($8000 - $97FF => 6144 bytes / 16 bytes per tile = 384)
         Word tileAddress = tileDataStart + (tile * 16); // tiles 16 bytes wide
         int tileX = (tile % tilesPerRow) * 8;
         int tileY = (tile / tilesPerRow) * 8;
