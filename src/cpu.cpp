@@ -289,7 +289,7 @@ Word Cpu::addByteToWord(Word &dest, int8_t src) {
     bool flag_h = ((dest & 0x0F) + (usrc & 0x0F)) > 0x0F;
     bool flag_c = ((dest & 0xFF) + usrc) > 0xFF;
     Word result = dest + src; // keep signed for correct result
-    updateFlags(1, false, flag_h, flag_c);
+    updateFlags(0x01, false, flag_h, flag_c);
     return result;
 }
 
@@ -1811,7 +1811,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
         case 0xFC:
         case 0xFD: {
             // todo, implement a crash system for invalid opcodes
-            std::cout << "illegal opcode" << std::endl;
+            printf("illegal opcode: 0x%02x", opcode);
             break;
         }
         default:
