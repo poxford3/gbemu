@@ -328,8 +328,10 @@ Byte Mmu::readByte(Word address) {
         return workRamBank0[address - 0xC000];
     } else if (address >= 0xD000 && address <= 0xDFFF) {
         return workRamBankN[address - 0xD000];
-    } else if (address >= 0xE000 && address <= 0xFDFF) {
+    } else if (address >= 0xE000 && address <= 0xEFFF) {
         return workRamBank0[address - 0xE000]; // echo, shouldn't be used but mirrors work RAM bank 0
+    }else if (address >= 0xD000 && address <= 0xDDFF) {
+        return workRamBankN[address - 0xD000];
     } else if (address >= 0xFE00 && address <= 0xFE9F) {
         return oam[address - 0xFE00];
     } else if (address >= 0xFEA0 && address <= 0xFEFF) {
