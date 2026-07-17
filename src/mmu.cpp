@@ -159,6 +159,7 @@ void Mmu::getRamSize(Byte RAMvalue, Byte MBCvalue) {
 void Mmu::swapRomBank(Byte bank) {
     int newStart = 0x4000 * bank; // can also do bank << 14
 
+    if (newStart + 0x4000 > entireRom.size()) return; // ensure new section stays within appropriate bounds
     // exclusive bound (everything up to 0x4000 for new end)
     std::copy(entireRom.begin() + newStart, entireRom.begin() + newStart + 0x4000, romBankN);
 }
@@ -187,13 +188,14 @@ void Mmu::handleRomWrite(Word address, Byte value) {
                 case 0x01: { // ROM bank number
                     // std::cout << "case 0x01" << std::endl;
                     // check if values align with upper-bit register issues / disallow 0 to be a value
-                    if (currentRomBank == 0x00 || currentRomBank == 0x20 || currentRomBank == 0x40 || currentRomBank == 0x60) {
-                        currentRomBank = (value & 0x1F) + 1;
+                    Byte checkVal = value & 0x1F;
+                    if (checkVal == 0x00 || checkVal == 0x20 || checkVal == 0x40 || checkVal == 0x60) {
+                        currentRomBank = checkVal + 1;
                     } else {
                         // value & 0x1F will return 1 of 32 possible values (0-31)
                         currentRomBank = value & 0x1F;
                     }
-                    swapRomBank(currentRamBank); // swap to new romBankN
+                    swapRomBank(currentRomBank); // swap to new romBankN
                     break;
                 }
                 case 0x02: { // RAM bank number or Upper Bits of ROM Bank number
@@ -211,6 +213,7 @@ void Mmu::handleRomWrite(Word address, Byte value) {
                     break;
                 }
             }
+            break;
         }
         case 2: { // MBC2
             bool reg = address < 0x4000;

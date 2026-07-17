@@ -20,6 +20,10 @@ Emulator::~Emulator() {
     window = NULL;
     renderer = NULL;
 
+    // ImGui_ImplSDLRenderer2_Shutdown();
+    // ImGui_ImplSDL2_Shutdown();
+    // ImGui::DestroyContext();
+
     SDL_Quit();
 }
 
@@ -41,7 +45,8 @@ void Emulator::init() {
         printf("error initializing window. SDL error: %s\n", SDL_GetError());
     }
 
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    // renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC); // vsync (needs research)
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     if (renderer == NULL) {
         printf("error initializing renderer. SDL error: %s\n", SDL_GetError());
@@ -56,6 +61,12 @@ void Emulator::init() {
     if (font == NULL) {
         printf("error loading font: %s\n", TTF_GetError());
     }
+
+    // Dear ImGui
+    // IMGUI_CHECKVERSION();
+    // ImGui::CreateContext();
+    // ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+    // ImGui_ImplSDLRenderer2_Init(renderer);
 
     running = true;
 }
@@ -94,7 +105,7 @@ void Emulator::createGameboyTextures() {
     }
 }
 
-int frameCounter = 0;
+
 void Emulator::run() {
     while (running) {
         SDL_Event event;
@@ -107,9 +118,10 @@ void Emulator::run() {
                     if (event.key.keysym.scancode == SDL_SCANCODE_F) {
                             FileHandler file = getFileFromUser();
                             if (sizeof(file) > 0) { // todo, check what happens when a user hits cancel, and if file isn't the right type (extension)
-                                printf("no file selected, please select a file to run the emulator\n");
                                 gameboy.emplace(file.readFile());
                                 createGameboyTextures();
+                            } else {
+                                printf("no file selected, please select a file to run the emulator\n");
                             }
                     } else if (event.key.keysym.scancode == SDL_SCANCODE_P) {
                         if (gameboy.has_value()) {
@@ -133,35 +145,31 @@ void Emulator::run() {
             if (!paused) {
                 gameboy->runFrame();
                 gameboy->ppu.loadTileData(gameboy->mmu);
-                frameCounter++;
             }
 
-            // if (frameCounter == 60) {
-            //     printf("VRAM Dump:\n");
-            //     for (int i = 0; i < 0x1800; i++) {
-            //         printf("%02X ", gameboy->mmu.VRam[i]);
-            //         if ((i + 1) % 16 == 0) printf("\n");
-            //     }
-            // }
-
-
-            uint widthForMemory = gameboy->ppu.EMULATOR_TILEDATA_WIDTH();
-            uint heightFormemory = gameboy->ppu.EMULATOR_TILEDATA_HEIGHT();
-            // uint widthForMemory = gameboy->ppu.EMULATOR_SCREEN_WIDTH();
-            // uint heightFormemory = gameboy->ppu.EMULATOR_SCREEN_HEIGHT();
+            // uint widthForMemory = gameboy->ppu.EMULATOR_TILEDATA_WIDTH();
+            // uint heightFormemory = gameboy->ppu.EMULATOR_TILEDATA_HEIGHT();
+            uint widthForMemory = gameboy->ppu.EMULATOR_SCREEN_WIDTH();
+            uint heightForMemory = gameboy->ppu.EMULATOR_SCREEN_HEIGHT();
 
             if (true) { // TODO REPLACE WITH DEBUG SOMEWHERE
                 displayMemory(gameboy->cpu, gameboy->mmu, widthForMemory);
-                SDL_Rect separator = {static_cast<int>(widthForMemory), 0, 1, static_cast<int>(heightFormemory)};
+
+                // section off the tile data from the screen
+                SDL_Rect separatorV = {static_cast<int>(widthForMemory), 0, 1, static_cast<int>(heightForMemory)};
                 SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
-                SDL_RenderFillRect(renderer, &separator);
+                SDL_RenderFillRect(renderer, &separatorV);
+
+                SDL_Rect separatorH = {0, static_cast<int>(heightForMemory), static_cast<int>(widthForMemory), 1};
+                SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
+                SDL_RenderFillRect(renderer, &separatorH);
             }
 
-            // SDL_Rect gameboySection = {0, 0, static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_WIDTH()), static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_HEIGHT())};
-            // SDL_UpdateTexture(gbTexture, NULL, gameboy->ppu.frameBuffer.data(), gameboy->ppu.GAMEBOY_WIDTH * 3);
-            // SDL_RenderCopy(renderer, gbTexture, NULL, &gameboySection);
+            SDL_Rect gameboySection = {0, 0, static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_WIDTH()), static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_HEIGHT())};
+            SDL_UpdateTexture(gbTexture, NULL, gameboy->ppu.frameBuffer.data(), gameboy->ppu.GAMEBOY_WIDTH * 3);
+            SDL_RenderCopy(renderer, gbTexture, NULL, &gameboySection);
 
-            SDL_Rect tileDataSection = {0, 0, static_cast<int>(gameboy->ppu.EMULATOR_TILEDATA_WIDTH()), static_cast<int>(gameboy->ppu.EMULATOR_TILEDATA_HEIGHT())};
+            SDL_Rect tileDataSection = {0, static_cast<int>(heightForMemory) + 1, static_cast<int>(gameboy->ppu.EMULATOR_TILEDATA_WIDTH()), static_cast<int>(gameboy->ppu.EMULATOR_TILEDATA_HEIGHT())};
             SDL_UpdateTexture(tileDataTexture, NULL, gameboy->ppu.tileData.data(), gameboy->ppu.TILEDATA_WIDTH * 3);
             SDL_RenderCopy(renderer, tileDataTexture, NULL, &tileDataSection);
         }

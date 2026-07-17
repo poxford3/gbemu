@@ -5,7 +5,7 @@
 Ppu::Ppu() {}
 
 
-void Ppu::init() {
+void Ppu::reset() {
     tileData.fill(0);
     palette = BlackWhite;
     // palette = GameboyGreen;
@@ -61,7 +61,7 @@ void Ppu::LCDStatus(Mmu &memory) {
             mode = 0;
             lcdStat = resetBit(lcdStat, 0); // set the 0th bit to 0
             lcdStat = resetBit(lcdStat, 1); // set the 1th bit to 0
-            intReq = getBit(lcdStat, 5); // interrupt request equal to 5th bit of STAT (Mode 2 select)
+            intReq = getBit(lcdStat, 3); // interrupt request equal to 3th bit of STAT (Mode 2 select)
         }
         
         // if new mode, interrupt flag set
@@ -74,13 +74,13 @@ void Ppu::LCDStatus(Mmu &memory) {
         Byte currLY = memory.readByte(Mmu::LY);
         Byte currLYC = memory.readByte(Mmu::LYC);
         if (currLY == currLYC) {
-            lcdStat = setBit(lcdStat, 6); // set the 6th bit to 1
+            lcdStat = setBit(lcdStat, 2); // set the 2th bit to 1
             if (getBit(lcdStat, 6)) { // check 6th bit of STAT
                 Byte IFreg = memory.readByte(Mmu::IF);
                 IFreg = setBit(IFreg, 1); // set the 1th bit to 1
                 memory.writeByte(Mmu::IF, IFreg);
             } else {
-                lcdStat = resetBit(lcdStat, 2);  // set the 2th bit to 0
+                lcdStat = resetBit(lcdStat, 1);  // set the 1th bit to 0
             }
         }
         memory.writeByte(Mmu::STAT, lcdStat);
@@ -89,41 +89,42 @@ void Ppu::LCDStatus(Mmu &memory) {
 
 
 void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
-    if (currentLine < 0 || currentLine >= GAMEBOY_HEIGHT) {
+    if (currentLine >= GAMEBOY_HEIGHT) {
         printf("loadScanline out of bounds: %d\n", currentLine);
         return;
     }
 
+    Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
+    Byte scrollx = memory.readByte(Mmu::SCX);
+    Byte scrolly = memory.readByte(Mmu::SCY);
+    Word bgPalette = memory.readByte(Mmu::BGP);
+    Word tileMapStart = (getBit(lcdc, 3) == 1) ? 0x9c00 : 0x9800;
+    Word tileDataStart = (getBit(lcdc, 4) == 1) ? 0x8000 : 0x9000;
+    Byte currentTileRow = ((currentLine + scrolly) / 8) % 32; // wraps back around at the end of the 32x32 block
+
     for (int col = 0; col < GAMEBOY_WIDTH; col++) {
-        Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
-        Byte scrollx = memory.readByte(Mmu::SCX);
-        Byte scrolly = memory.readByte(Mmu::SCY);
-        Word bgPalette = memory.readByte(Mmu::BGP);
-        Word tileMapStart = (getBit(lcdc, 3) == 1) ? 0x9c00 : 0x9800;
-        Word tileDataStart = (getBit(lcdc, 4) == 1) ? 0x8000 : 0x8800;
     
-        Byte currentTileRow = ((currentLine + scrolly) / 8) % 32; // wraps back around at the end of the 32x32 block
         Byte currentTileCol = ((col + scrollx) / 8) % 32; // gets the location in the window
 
         Word tileMapAddress = tileMapStart + (currentTileRow * 32) + currentTileCol; // tile map address from the given row and col, offset by the tile map start
         Byte tileId = memory.readByte(tileMapAddress);
-        Byte lo = memory.readByte(tileId); // low byte of the tile id
-        Byte hi = memory.readByte(tileId + 1); // high byte of the tile id
+        Word tileAddress;
+        if (tileDataStart == 0x8000)
+        {
+            tileAddress = tileDataStart + tileId * 16;
+        }
+        else {
+            tileAddress = tileDataStart + (int8_t)tileId * 16;
+        }
+        Byte tileRow = (currentLine + scrolly) % 8;
+        Byte lo = memory.readByte(tileAddress + (tileRow * 2));     // low byte of the tile to show
+        Byte hi = memory.readByte(tileAddress + (tileRow * 2) + 1); // high byte of the tile
 
-
+        Byte bitToShift = (7 - (col + scrollx) % 8);
+        Byte paletteId = getBit(lo, bitToShift) | (getBit(hi, bitToShift) << 1);
         // formula used to determine color value from bg palette
         // shifting over 2 bits at a time (change the 2 to the number of bits shifted)
-        Byte colorVal = bgPalette << (0b11 * 2) & 0b11;
-
-        std::bitset<16> rowVal;
-        // from thethiefmaster on emu discord
-        for (int i = 0; i < 8; i++) {
-            rowVal.set(i*2, getBit(lo, i));
-            rowVal.set(i*2+1, getBit(hi, i));
-        }
-        uint rowIdx = (currentLine * GAMEBOY_WIDTH + col) * 3; 
-
-        Byte colorIndex = rowVal[7 - (col % 8)] | (rowVal[7 - (col % 8) + 1] << 1);
+        Byte colorIndex = bgPalette >> (paletteId * 2) & 0b11;
         SDL_Color c;
         switch (colorIndex) {
             case 0: c = palette.getColor(WHITE);        break;
@@ -132,9 +133,36 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
             case 3: c = palette.getColor(BLACK);        break;
             default: c = palette.getColor(WHITE);       break;
         }
-        frameBuffer[rowIdx + 0] = c.r; // r
-        frameBuffer[rowIdx + 1] = c.g; // g
-        frameBuffer[rowIdx + 2] = c.b; // b
+
+        int index = ((currentLine * 160) + col) * 3;
+        frameBuffer[index + 0] = c.r; // r
+        frameBuffer[index + 1] = c.g; // g
+        frameBuffer[index + 2] = c.b; // b
+
+        // if (currentLine == 0 && col < 16)
+        // {
+        //     printf(
+        //         "x=%d tile=(%d,%d) map=%04X id=%02X addr=%04X row=%d lo=%02X hi=%02X\n",
+        //         col,
+        //         currentTileRow,
+        //         currentTileCol,
+        //         tileMapAddress,
+        //         tileId,
+        //         tileAddress,
+        //         tileRow,
+        //         lo,
+        //         hi
+        //     );
+        // }
+        // printf("LCDC=%02X bit4=%d tileBase=%04X\n",
+        // lcdc,
+        // getBit(lcdc,4),
+        // tileDataStart);
+        // for (int i = 0; i < 16; i++)
+        // {
+        //     printf("%02X ", memory.readByte(tileAddress + i));
+        // }
+        // printf("\n");
     }    
 }
 
@@ -151,11 +179,10 @@ void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
     scanlineCounter -= cycles;
 
     if (scanlineCounter <= 0) {
-        memory.writeByte(Mmu::LY, memory.readByte(Mmu::LY) + 1);
         Byte currentLine = memory.readByte(Mmu::LY);
-
+        
         scanlineCounter = 456;
-
+        
         if (currentLine == 144) {
             // set bit 0 of IF to request vblank interrupt
             memory.writeByte(memory.IF, memory.readByte(memory.IF) | 0x01);
@@ -164,6 +191,7 @@ void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
         } else if (currentLine < 144) {
             loadScanline(memory, currentLine);
         }
+        memory.writeByte(Mmu::LY, memory.readByte(Mmu::LY) + 1);
     }
 }
 
@@ -171,21 +199,20 @@ void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
 void Ppu::loadTileData(Mmu &memory) {
     Word tileDataStart = 0x8000; // tile block 0 starts at $8000
     const int tilesPerRow = 16;
-    // Word tileDataStart = 0x82A0; // testing
     Byte bgPalette = memory.readByte(Mmu::BGP);
-    // printf("tile 1 and 2: 0x%02x 0x%02x\n", memory.VRam[0], memory.VRam[1]);
+    // printf("0x%02x\n", bgPalette);
     for (int tile = 0; tile < 384; tile++) { // 384 tiles across the 3 blocks ($8000 - $97FF => 6144 bytes / 16 bytes per tile = 384)
         Word tileAddress = tileDataStart + (tile * 16); // tiles 16 bytes wide
         int tileX = (tile % tilesPerRow) * 8;
         int tileY = (tile / tilesPerRow) * 8;
-        // Word tileAddress = tileDataStart;
         for (int row = 0; row < 8; row++) {
             Byte lo = memory.readByte(tileAddress + (row * 2)); // low byte of the tile row
             Byte hi = memory.readByte(tileAddress + (row * 2) + 1); // high byte of the tile row
-            // printf("0x%02x lo\t0x%02x hi\n", lo, hi);
             for (int col = 0; col < 8; col++) {
-                Byte colorIndex = getBit(lo, 7 - col) | (getBit(hi, 7 - col) << 1); // gets the nth bit for hi and lo, shifts the hi bit 1 and ORs them to get the color index
-                // printf("%d ", colorIndex);
+                Byte paletteId = getBit(lo, 7 - col) | (getBit(hi, 7 - col) << 1);
+                // formula used to determine color value from bg palette
+                // shifting over 2 bits at a time (change the 2 to the number of bits shifted)
+                Byte colorIndex = bgPalette >> (paletteId * 2) & 0b11;
                 SDL_Color c;
                 switch (colorIndex) {
                     case 0: c = palette.getColor(WHITE);        break;
@@ -202,8 +229,6 @@ void Ppu::loadTileData(Mmu &memory) {
                 tileData[index + 1] = c.g;
                 tileData[index + 2] = c.b;
             }
-            // printf("\n");
         }
-        // printf("\n");
     }
 }
