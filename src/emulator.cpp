@@ -20,9 +20,9 @@ Emulator::~Emulator() {
     window = NULL;
     renderer = NULL;
 
-    // ImGui_ImplSDLRenderer2_Shutdown();
-    // ImGui_ImplSDL2_Shutdown();
-    // ImGui::DestroyContext();
+    ImGui_ImplSDLRenderer2_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
 
     SDL_Quit();
 }
@@ -39,7 +39,7 @@ void Emulator::init() {
                     SDL_WINDOWPOS_CENTERED,
                     emulatorScreenWidth,
                     emulatorScreenHeight,
-                    SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+                    SDL_WINDOW_SHOWN);
 
     if (window == NULL) {
         printf("error initializing window. SDL error: %s\n", SDL_GetError());
@@ -63,10 +63,10 @@ void Emulator::init() {
     }
 
     // Dear ImGui
-    // IMGUI_CHECKVERSION();
-    // ImGui::CreateContext();
-    // ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
-    // ImGui_ImplSDLRenderer2_Init(renderer);
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+    ImGui_ImplSDLRenderer2_Init(renderer);
 
     running = true;
 }
@@ -103,76 +103,85 @@ void Emulator::createGameboyTextures() {
             printf("error initializing texture, SDL error %s\n", SDL_GetError());
         }
     }
+    SDL_SetWindowSize(window, gameboy->ppu.EMULATOR_SCREEN_WIDTH(), gameboy->ppu.EMULATOR_SCREEN_HEIGHT());
 }
-
 
 void Emulator::run() {
     while (running) {
+
+        // imgui menu section
+        ImGui_ImplSDLRenderer2_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+
+        // UI
+        renderMenuBar();
+        ImGui::Render();
+
+        // events
         SDL_Event event;
     
-            while (SDL_PollEvent(&event) != 0) {
-                if (event.type == SDL_QUIT) {
-                    running = false;
-                }
-                if (event.type == SDL_KEYDOWN) {
-                    if (event.key.keysym.scancode == SDL_SCANCODE_F) {
-                            FileHandler file = getFileFromUser();
-                            if (sizeof(file) > 0) { // todo, check what happens when a user hits cancel, and if file isn't the right type (extension)
-                                gameboy.emplace(file.readFile());
-                                createGameboyTextures();
-                            } else {
-                                printf("no file selected, please select a file to run the emulator\n");
-                            }
-                    } else if (event.key.keysym.scancode == SDL_SCANCODE_P) {
-                        if (gameboy.has_value()) {
-                            paused = !paused;
-                        }
-                    } else if (event.key.keysym.scancode == SDL_SCANCODE_S) {
-                        if (gameboy.has_value()) {
-                            if (gameboy->ppu.palette.selectedPalette == PaletteOptions::GameboyGreen) {
-                                gameboy->ppu.palette.selectedPalette = PaletteOptions::BlackWhite;
-                            } else {
-                                gameboy->ppu.palette.selectedPalette = PaletteOptions::GameboyGreen;
-                            }
+        while (SDL_PollEvent(&event) != 0) {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+
+            if (event.type == SDL_QUIT) {
+                running = false;
+            }
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.scancode == SDL_SCANCODE_P) {
+                    if (gameboy.has_value()) {
+                        paused = !paused;
+                    }
+                } else if (event.key.keysym.scancode == SDL_SCANCODE_S) {
+                    if (gameboy.has_value()) {
+                        if (gameboy->ppu.palette.selectedPalette == PaletteOptions::GameboyGreen) {
+                            gameboy->ppu.palette.selectedPalette = PaletteOptions::BlackWhite;
+                        } else {
+                            gameboy->ppu.palette.selectedPalette = PaletteOptions::GameboyGreen;
                         }
                     }
                 }
             }
-        SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+        }
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
+
+        // gameboy rendering
         if (gameboy.has_value()) {
             if (!paused) {
                 gameboy->runFrame();
                 gameboy->ppu.loadTileData(gameboy->mmu);
             }
 
-            // uint widthForMemory = gameboy->ppu.EMULATOR_TILEDATA_WIDTH();
-            // uint heightFormemory = gameboy->ppu.EMULATOR_TILEDATA_HEIGHT();
-            uint widthForMemory = gameboy->ppu.EMULATOR_SCREEN_WIDTH();
-            uint heightForMemory = gameboy->ppu.EMULATOR_SCREEN_HEIGHT();
+            uint gameboyWidth = gameboy->ppu.EMULATOR_SCREEN_WIDTH();
+            uint gameboyHeight = gameboy->ppu.EMULATOR_SCREEN_HEIGHT();
+            ImVec2 menuSize = ImGui::GetMainViewport()->WorkPos;
 
-            if (true) { // TODO REPLACE WITH DEBUG SOMEWHERE
-                displayMemory(gameboy->cpu, gameboy->mmu, widthForMemory);
+            if (showTileData) {
+                int newWindowWidth = gameboy->ppu.EMULATOR_SCREEN_WIDTH() + gameboy->ppu.EMULATOR_TILEDATA_WIDTH();
+                int newWindowHeight = gameboy->ppu.EMULATOR_TILEDATA_HEIGHT();
+                SDL_SetWindowSize(window, newWindowWidth, newWindowHeight);
 
                 // section off the tile data from the screen
-                SDL_Rect separatorV = {static_cast<int>(widthForMemory), 0, 1, static_cast<int>(heightForMemory)};
+                SDL_Rect separatorV = {static_cast<int>(gameboyWidth), 0, 1, static_cast<int>(gameboyHeight)};
                 SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
                 SDL_RenderFillRect(renderer, &separatorV);
 
-                SDL_Rect separatorH = {0, static_cast<int>(heightForMemory), static_cast<int>(widthForMemory), 1};
-                SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
-                SDL_RenderFillRect(renderer, &separatorH);
+                SDL_Rect tileDataSection = {static_cast<int>(gameboyWidth + 1), static_cast<int>(menuSize.y), static_cast<int>(gameboy->ppu.EMULATOR_TILEDATA_WIDTH()), static_cast<int>(gameboy->ppu.EMULATOR_TILEDATA_HEIGHT())};
+                SDL_UpdateTexture(tileDataTexture, NULL, gameboy->ppu.tileData.data(), gameboy->ppu.TILEDATA_WIDTH * 3);
+                SDL_RenderCopy(renderer, tileDataTexture, NULL, &tileDataSection);
+            } else {
+                SDL_SetWindowSize(window, gameboy->ppu.EMULATOR_SCREEN_WIDTH(), gameboy->ppu.EMULATOR_SCREEN_HEIGHT());
             }
 
-            SDL_Rect gameboySection = {0, 0, static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_WIDTH()), static_cast<int>(gameboy->ppu.EMULATOR_SCREEN_HEIGHT())};
+            SDL_Rect gameboySection = {0, static_cast<int>(menuSize.y), static_cast<int>(gameboyWidth), static_cast<int>(gameboyHeight)};
             SDL_UpdateTexture(gbTexture, NULL, gameboy->ppu.frameBuffer.data(), gameboy->ppu.GAMEBOY_WIDTH * 3);
             SDL_RenderCopy(renderer, gbTexture, NULL, &gameboySection);
-
-            SDL_Rect tileDataSection = {0, static_cast<int>(heightForMemory) + 1, static_cast<int>(gameboy->ppu.EMULATOR_TILEDATA_WIDTH()), static_cast<int>(gameboy->ppu.EMULATOR_TILEDATA_HEIGHT())};
-            SDL_UpdateTexture(tileDataTexture, NULL, gameboy->ppu.tileData.data(), gameboy->ppu.TILEDATA_WIDTH * 3);
-            SDL_RenderCopy(renderer, tileDataTexture, NULL, &tileDataSection);
         }
+
+        // Draw ImGui
+        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
 
         SDL_RenderPresent(renderer);
         SDL_Delay(16); // 16 ms = 60 fps
@@ -185,48 +194,69 @@ void Emulator::handleInput() {
     // needs some work
 }
 
+void Emulator::renderMenuBar() {
+    if (ImGui::BeginMainMenuBar()){
+        if (ImGui::BeginMenu("File")){
+            if (ImGui::Button("Open File")) {
+                FileHandler file = getFileFromUser();
+                if (sizeof(file) > 0) { // todo, check what happens when a user hits cancel, and if file isn't the right type (extension)
+                    gameboy.emplace(file.readFile());
+                    createGameboyTextures();
+                } else {
+                    printf("no file selected, please select a file to run the emulator\n");
+                }
+            }
+            ImGui::EndMenu();
+        }
+        if (gameboy.has_value()) {
+            static int winScale = gameboy->ppu.winScale;
 
-void Emulator::drawText(const std::string& text, int x, int y) {
-    SDL_Color textColor = {0, 0, 0, 255};
-    SDL_Surface* surface = TTF_RenderText_Solid(font, text.c_str(), textColor);
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-    
-    int w, h;
-    SDL_QueryTexture(texture, NULL, NULL, &w, &h);
-    SDL_Rect rect = {x, y, w, h};
-    
-    SDL_RenderCopy(renderer, texture, NULL, &rect);
-    SDL_FreeSurface(surface);
-    SDL_DestroyTexture(texture);
+            if (winScale > 4) {
+                winScale = 4;
+            } else if (winScale < 1) {
+                winScale = 1;
+            }
+
+            if (ImGui::BeginMenu("Window")) {
+                ImGui::SetNextItemWidth(40);
+               if (ImGui::InputInt("Gameboy Scale (1-4)", &winScale, 1)) {
+                gameboy->ppu.winScale = std::clamp(winScale, 1, 4); // set limit to 1-4
+               }
+               ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Debug")) {
+                if (ImGui::Button("Open Gameboy Stats")) {
+                    showDebugMenu = true;
+                }
+                if (ImGui::Button("Show Tile Data")) {
+                    showTileData = !showTileData;
+                }
+                ImGui::EndMenu();
+            }
+        }
+        ImGui::EndMainMenuBar();
+    }
+
+    if (showDebugMenu) {
+        ImGui::SetNextWindowSize(ImVec2(100, 200), ImGuiCond_FirstUseEver);
+        // ImGui::SetNextWindowPos(ImVec2(10, 10)); // todo find a way to make this allow for movement
+
+        if (ImGui::Begin("Debug", &showDebugMenu)) {
+            Byte lcdcBin = gameboy->mmu.readByte(Mmu::LCDC);
+            Byte statBin = gameboy->mmu.readByte(Mmu::STAT);
+            Byte ly = gameboy->mmu.readByte(Mmu::LY);
+            ImGui::Text("A: 0x%02x\tF: 0x%02x", gameboy->cpu.A, gameboy->cpu.F);
+            ImGui::Text("B: 0x%02x\tC: 0x%02x", gameboy->cpu.B, gameboy->cpu.C);
+            ImGui::Text("D: 0x%02x\tE: 0x%02x", gameboy->cpu.D, gameboy->cpu.E);
+            ImGui::Text("H: 0x%02x\tL: 0x%02x", gameboy->cpu.H, gameboy->cpu.L);
+            ImGui::Text("PC: 0x%04x\tSP: 0x%02x", gameboy->cpu.PC, gameboy->cpu.SP);
+            ImGui::Text("LCDC: 0b%s", std::bitset<8>(lcdcBin).to_string().c_str());
+            ImGui::Text("STAT: 0b%s", std::bitset<8>(statBin).to_string().c_str());
+            ImGui::Text("LY: 0x%02x", ly);
+        }
+        ImGui::End();
+    }
 }
-
-
-void Emulator::displayMemory(Cpu &cpu, Mmu &memory, uint width) {
-    int numItems = 13;
-    char buf[numItems * 9];
-    uint lineHeight = 30;
-    uint x = width + 5; // +5 for a bit of left padding
-    Byte lcdcBin = memory.readByte(Mmu::LCDC);
-    Byte statBin = memory.readByte(Mmu::STAT);
-    Byte ly = memory.readByte(Mmu::LY);
-    Byte tile1 = memory.readByte(0x8000);
-    Byte tile2 = memory.readByte(0x8001);
-    snprintf(buf, sizeof(buf), "A: 0x%02X", cpu.A); drawText(buf, x, lineHeight * 0);
-    snprintf(buf, sizeof(buf), "F: 0x%02X", cpu.F); drawText(buf, x, lineHeight * 1);
-    snprintf(buf, sizeof(buf), "B: 0x%02X", cpu.B); drawText(buf, x, lineHeight * 2);
-    snprintf(buf, sizeof(buf), "C: 0x%02X", cpu.C); drawText(buf, x, lineHeight * 3);
-    snprintf(buf, sizeof(buf), "D: 0x%02X", cpu.D); drawText(buf, x, lineHeight * 4);
-    snprintf(buf, sizeof(buf), "E: 0x%02X", cpu.E); drawText(buf, x, lineHeight * 5);
-    snprintf(buf, sizeof(buf), "H: 0x%02X", cpu.H); drawText(buf, x, lineHeight * 6);
-    snprintf(buf, sizeof(buf), "L: 0x%02X", cpu.L); drawText(buf, x, lineHeight * 7);
-    snprintf(buf, sizeof(buf), "PC: 0x%04X", cpu.PC); drawText(buf, x, lineHeight * 8);
-    snprintf(buf, sizeof(buf), "SP: 0x%04X", cpu.SP); drawText(buf, x, lineHeight * 9);
-    snprintf(buf, sizeof(buf), "LCDC: 0b%s", std::bitset<8>(lcdcBin).to_string().c_str()); drawText(buf, x, lineHeight * 10); // draw the bits out here since I want to see each part's effect
-    snprintf(buf, sizeof(buf), "STAT: 0b%s", std::bitset<8>(statBin).to_string().c_str()); drawText(buf, x, lineHeight * 11); // draw the bits out here since I want to see each part's effect
-    snprintf(buf, sizeof(buf), "LY: 0x%02X", ly); drawText(buf, x, lineHeight * 12);
-
-}
-
 
 FileHandler Emulator::getFileFromUser() {
     nfdchar_t* outPath = nullptr;

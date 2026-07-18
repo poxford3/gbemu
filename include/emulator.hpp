@@ -3,6 +3,9 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
+#include "imgui.h"
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_sdlrenderer2.h"
 #include "gameboy.hpp"
 #include "utils/file.hpp"
 #include "utils/palette.hpp"
@@ -21,8 +24,10 @@ class Emulator {
     private:
         bool running;
         bool paused;
-        int emulatorScreenWidth = 800;
-        int emulatorScreenHeight = 600;
+        bool showDebugMenu;
+        bool showTileData;
+        int emulatorScreenWidth = 300;
+        int emulatorScreenHeight = 150;
         SDL_Window* window;
         SDL_Renderer* renderer;
         SDL_Texture* gbTexture;
@@ -33,8 +38,7 @@ class Emulator {
 
         void handleInput();
         void createGameboyTextures();
-        void displayMemory(Cpu &cpu, Mmu &memory, uint width);
-        void drawText(const std::string& text, int x, int y);
+        void renderMenuBar();
 
 };
 

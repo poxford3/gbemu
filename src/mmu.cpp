@@ -265,6 +265,7 @@ void Mmu::handleRomWrite(Word address, Byte value) {
                     }
                 }
             }
+            break;
         }
     }
 }

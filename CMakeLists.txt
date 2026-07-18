@@ -10,9 +10,9 @@ project(gbemu)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
-# Include your headers
+# include header files
 include_directories(include)
+
 
 # Find SDL2 (installed via Homebrew)
 find_package(SDL2 REQUIRED)
@@ -41,9 +41,25 @@ find_package(nlohmann_json REQUIRED)
 # Source files
 file(GLOB SRC_FILES src/*.cpp)
 
+# dear imgui
+set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/external/imgui)
 
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    # Optional while developing
+    ${IMGUI_DIR}/imgui_demo.cpp
 
-add_executable(${PROJECT_NAME} ${SRC_FILES})
+    ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_sdlrenderer2.cpp
+)
+
+add_executable(${PROJECT_NAME}
+    ${SRC_FILES}
+    ${IMGUI_SOURCES}
+)
 # ---
 target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
 target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
@@ -57,6 +73,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${SDL2_IMAGE_INCLUDE_DIR}
     ${SDL2_TTF_INCLUDE_DIR}
     ${NFD_INCLUDE_DIR}
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
 )
 
 target_link_libraries(${PROJECT_NAME}

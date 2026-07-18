@@ -103,7 +103,7 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
     Byte currentTileRow = ((currentLine + scrolly) / 8) % 32; // wraps back around at the end of the 32x32 block
 
     for (int col = 0; col < GAMEBOY_WIDTH; col++) {
-    
+
         Byte currentTileCol = ((col + scrollx) / 8) % 32; // gets the location in the window
 
         Word tileMapAddress = tileMapStart + (currentTileRow * 32) + currentTileCol; // tile map address from the given row and col, offset by the tile map start
