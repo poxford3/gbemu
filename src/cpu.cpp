@@ -38,33 +38,26 @@ void Cpu::updateFlags(Byte result, bool isSubtraction, bool halfCarry, bool carr
 
 void Cpu::showAllRegisterValues() {
     Byte flags = F;
-    std::cout << "Flags: Z=" << ((flags & 0x80) ? "1" : "0") << " N=" << ((flags & 0x40) ? "1" : "0") << " H=" << ((flags & 0x20) ? "1" : "0") << " C=" << ((flags & 0x10) ? "1" : "0") << std::endl;
-    std::cout << "AF: 0x" << std::hex << AF << std::dec << " (A: 0x" << std::hex << static_cast<int>(A) 
-              << ", F: 0x" << std::hex << static_cast<int>(F) << std::dec << ")" << std::endl;
-    std::cout << "BC: 0x" << std::hex << BC << std::dec << " (B: 0x" << std::hex << static_cast<int>(B) 
-              << ", C: 0x" << std::hex << static_cast<int>(C) << std::dec << ")" << std::endl;
-    std::cout << "DE: 0x" << std::hex << DE << std::dec << " (D: 0x" << std::hex << static_cast<int>(D) 
-              << ", E: 0x" << std::hex << static_cast<int>(E) << std::dec << ")" << std::endl;
-    std::cout << "HL: 0x" << std::hex << HL << std::dec << " (H: 0x" << std::hex << static_cast<int>(H) 
-              << ", L: 0x" << std::hex << static_cast<int>(L) << std::dec << ")" << std::endl;
-    std::cout << "SP: 0x" << std::hex << SP << std::dec << std::endl;
-    std::cout << "PC: 0x" << std::hex << PC << std::dec << std::endl;
+    printf("Flags Z=%d N=%d H=%d C=%d", (flags & 0x80), (flags & 0x40), (flags & 0x20), (flags & 0x10));
+    printf("(A: %02x, F: %02x)\n", A, F);
+    printf("(B: %02x, C: %02x)\n", B, C);
+    printf("(D: %02x, E: %02x)\n", D, E);
+    printf("(H: %02x, L: %02x)\n", H, L);
+    printf("IME: %d\n", IME);
+    printf("PC: %04x\n", PC);
+    printf("SP: %04x\n", SP);
 }
 
 void Cpu::TEST_showAllRegValuesDecimal() {
     Byte flags = F;
-    std::cout << "Flags: Z=" << ((flags & 0x80) ? "1" : "0") << " N=" << ((flags & 0x40) ? "1" : "0") << " H=" << ((flags & 0x20) ? "1" : "0") << " C=" << ((flags & 0x10) ? "1" : "0") << std::endl;
-    std::cout << "(A: " << static_cast<int>(A) 
-              << ", F: " << static_cast<int>(F) << ")" << std::endl;
-    std::cout << "(B: " << static_cast<int>(B) 
-            << ", C: " << static_cast<int>(C) << ")" << std::endl;
-    std::cout << "(D: " << static_cast<int>(D) 
-              << ", E: " << static_cast<int>(E) << ")" << std::endl;
-    std::cout << "(H: " << static_cast<int>(H) 
-              << ", L: " << static_cast<int>(L) << ")" << std::endl;
-    std::cout << "IME: " << IME << std::endl;
-    std::cout << "SP: " << SP << std::endl;
-    std::cout << "PC: " << PC << std::endl;
+    printf("Flags Z=%d N=%d H=%d C=%d", (flags & 0x80), (flags & 0x40), (flags & 0x20), (flags & 0x10));
+    printf("(A: %d, F: %02x)\n", static_cast<int>(A), static_cast<int>(F));
+    printf("(B: %d, C: %02x)\n", static_cast<int>(B), static_cast<int>(C));
+    printf("(D: %d, E: %02x)\n", static_cast<int>(D), static_cast<int>(E));
+    printf("(H: %d, L: %02x)\n", static_cast<int>(H), static_cast<int>(L));
+    printf("IME: %d\n", IME);
+    printf("PC: %04x\n", PC);
+    printf("SP: %04x\n", SP);
 }
 
 Word Cpu::incWord(Word value) {
@@ -93,7 +86,6 @@ Byte Cpu::decByte(Byte value) {
 
 void Cpu::jp(Word address) {
     // jump to address
-    // std::cout << "jump to 0x" << std::hex << address << std::dec << std::endl;
     PC = address;
 }
 
@@ -477,7 +469,6 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
         case LD_A_a8mem: {
             Byte a8 = loadByte(memory);
             Word a8address = 0xFF00 + a8; // only the lower half of the address is provided, opcode always between 0xFF00 - 0xFFFF
-            // std::cout << std::hex << a8address << std::dec << std::endl;
             A = memory.readByte(a8address);
             cycles = opcycles[opcode];
             break;
