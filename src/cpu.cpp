@@ -376,13 +376,10 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
     switch (opcode) {
         // x0 opcodes
         case NOP: {
-            // std::cout << "Executed NOP" << std::endl;
             cycles = opcycles[opcode];
             break;
         }
         case STOP: {
-            // TODO, will be clock related
-            // std::cout << "Executed STOP" << std::endl;
             memory.interruptEnableRegister = 0; 
             cycles = opcycles[opcode];
             break;
@@ -1815,7 +1812,7 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
             break;
         }
         default:
-                std::cout << "Unknown opcode: 0x" << std::hex << static_cast<int>(opcode) << std::dec << std::endl;
+                printf("Unknown opcode: 0x%02x\n", opcode);
                 break;
     }
     return cycles;
@@ -3203,7 +3200,8 @@ uint Cpu::executeExtendedOpcode(Byte opcode, Mmu &memory) {
 
         // TODO
         default:
-            std::cout << "Unknown extended opcode: 0xCB 0x" << std::hex << static_cast<int>(opcode) << std::dec << std::endl;
+            // std::cout << "Unknown extended opcode: 0xCB 0x" << std::hex << static_cast<int>(opcode) << std::dec << std::endl;
+            printf("Unknown extended opcode: 0xCB 0x%02x\n", opcode);
             break;
     }
     return exCycles;
