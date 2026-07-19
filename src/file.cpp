@@ -2,7 +2,15 @@
 #include "utils/file.hpp"
 #include "utils/types.hpp"
 
-FileHandler::FileHandler(const std::string& filePath) : m_filePath{filePath} {}
+FileHandler::FileHandler(const std::string& filePath) : m_filePath{filePath} {
+    if (filePath.length() > 0) {
+        if (filePath.substr(filePath.length() - 3) == ".gb") {
+            isDmg = true;
+        } else if (filePath.substr(filePath.length() - 4) == ".gbc") {
+            isCgb = true;
+        }
+    }
+}
 
 /**
  * readFile()

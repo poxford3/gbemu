@@ -154,7 +154,9 @@ bool Gameboy::checksum() {
 
 /**
  * this was used to test the SST functions, which requires looping through a json file
+ * @deprecated
  */
+[[deprecated("This was used in early testing, just look at things on screen or run CPU tests")]]
 void Gameboy::testWithJson(std::string path) {
     std::ifstream f(path);
 
@@ -166,7 +168,6 @@ void Gameboy::testWithJson(std::string path) {
 
         for (int i = 0; i < opcodeTestData.size(); i++) {
             cpu.reset();
-            // std::cout << i << std::endl;
             // set initial values
             cpu.PC = opcodeTestData[i]["initial"]["pc"].get<Word>();
             cpu.SP = opcodeTestData[i]["initial"]["sp"].get<Word>();
@@ -220,7 +221,6 @@ void Gameboy::testWithJson(std::string path) {
                 // cpu.showAllRegisterValues();
                 cpu.TEST_showAllRegValuesDecimal();
             } else {
-                // std::cout << "pass, op: " << opcodeTestData[i]["name"] << std::endl;
             }
         }
         // std::string name = opcodeTestData[0]["name"];

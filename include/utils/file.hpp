@@ -11,6 +11,8 @@
  */
 class FileHandler {
 public:
+    bool isDmg;
+    bool isCgb;
     FileHandler(const std::string &filePath);
     std::vector<unsigned char> readFile();
     void readRandomValues(const std::vector<unsigned char>& buffer, int start, int length);

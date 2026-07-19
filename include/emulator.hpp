@@ -36,7 +36,7 @@ class Emulator {
         SDL_Renderer* GetRenderer();
         std::optional<Gameboy> gameboy;
 
-        void handleInput();
+        void handleInput(SDL_Event &event);
         void createGameboyTextures();
         void renderMenuBar();
 

@@ -123,25 +123,7 @@ void Emulator::run() {
     
         while (SDL_PollEvent(&event) != 0) {
             ImGui_ImplSDL2_ProcessEvent(&event);
-
-            if (event.type == SDL_QUIT) {
-                running = false;
-            }
-            if (event.type == SDL_KEYDOWN) {
-                if (event.key.keysym.scancode == SDL_SCANCODE_P) {
-                    if (gameboy.has_value()) {
-                        paused = !paused;
-                    }
-                } else if (event.key.keysym.scancode == SDL_SCANCODE_S) {
-                    if (gameboy.has_value()) {
-                        if (gameboy->ppu.palette.selectedPalette == PaletteOptions::GameboyGreen) {
-                            gameboy->ppu.palette.selectedPalette = PaletteOptions::BlackWhite;
-                        } else {
-                            gameboy->ppu.palette.selectedPalette = PaletteOptions::GameboyGreen;
-                        }
-                    }
-                }
-            }
+            handleInput(event);
         }
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
@@ -154,17 +136,20 @@ void Emulator::run() {
                 gameboy->ppu.loadTileData(gameboy->mmu);
             }
 
+            // set window title from the rom data
+            SDL_SetWindowTitle(window, gameboy->mmu.title.c_str());
+
             uint gameboyWidth = gameboy->ppu.EMULATOR_SCREEN_WIDTH();
             uint gameboyHeight = gameboy->ppu.EMULATOR_SCREEN_HEIGHT();
             ImVec2 menuSize = ImGui::GetMainViewport()->WorkPos;
 
             if (showTileData) {
                 int newWindowWidth = gameboy->ppu.EMULATOR_SCREEN_WIDTH() + gameboy->ppu.EMULATOR_TILEDATA_WIDTH();
-                int newWindowHeight = gameboy->ppu.EMULATOR_TILEDATA_HEIGHT();
+                int newWindowHeight = gameboy->ppu.EMULATOR_TILEDATA_HEIGHT() + menuSize.y;
                 SDL_SetWindowSize(window, newWindowWidth, newWindowHeight);
 
                 // section off the tile data from the screen
-                SDL_Rect separatorV = {static_cast<int>(gameboyWidth), 0, 1, static_cast<int>(gameboyHeight)};
+                SDL_Rect separatorV = {static_cast<int>(gameboyWidth), 0, 1, static_cast<int>(gameboyHeight + menuSize.y)};
                 SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
                 SDL_RenderFillRect(renderer, &separatorV);
 
@@ -172,7 +157,7 @@ void Emulator::run() {
                 SDL_UpdateTexture(tileDataTexture, NULL, gameboy->ppu.tileData.data(), gameboy->ppu.TILEDATA_WIDTH * 3);
                 SDL_RenderCopy(renderer, tileDataTexture, NULL, &tileDataSection);
             } else {
-                SDL_SetWindowSize(window, gameboy->ppu.EMULATOR_SCREEN_WIDTH(), gameboy->ppu.EMULATOR_SCREEN_HEIGHT());
+                SDL_SetWindowSize(window, gameboy->ppu.EMULATOR_SCREEN_WIDTH(), gameboy->ppu.EMULATOR_SCREEN_HEIGHT() + menuSize.y);
             }
 
             SDL_Rect gameboySection = {0, static_cast<int>(menuSize.y), static_cast<int>(gameboyWidth), static_cast<int>(gameboyHeight)};
@@ -189,9 +174,58 @@ void Emulator::run() {
 }
 
 
-void Emulator::handleInput() {
-    const Byte* state = SDL_GetKeyboardState(NULL);
-    // needs some work
+void Emulator::handleInput(SDL_Event &event) {
+    if (event.type == SDL_QUIT) {
+        running = false;
+    }
+    if (event.type == SDL_KEYDOWN) {
+        if (event.key.keysym.scancode == SDL_SCANCODE_P) {
+            if (gameboy.has_value()) {
+                paused = !paused;
+            }
+        } else if (event.key.keysym.scancode == SDL_SCANCODE_S) {
+            if (gameboy.has_value()) {
+                if (gameboy->ppu.palette.selectedPalette == PaletteOptions::GameboyGreen) {
+                    gameboy->ppu.palette.selectedPalette = PaletteOptions::BlackWhite;
+                } else {
+                    gameboy->ppu.palette.selectedPalette = PaletteOptions::GameboyGreen;
+                }
+            }
+        } 
+        // else if (event.key.keysym.scancode == SDL_SCANCODE_A) { // B button // needs lots of work
+        //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
+        //     joyp = resetBit(joyp, 1); // setting to 0 since it's active high (1 is B)
+        //     joyp = setBit(joyp, 4); // turn off dpad
+        //     joyp = resetBit(joyp, 5); // setting the "button select" option
+        //     gameboy->mmu.writeByte(Mmu::P1, joyp);
+        //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
+        //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
+        //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
+        // }
+        // else if (event.key.keysym.scancode == SDL_SCANCODE_X) { // A button
+        //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
+        //     joyp = resetBit(joyp, 0); // setting to 0 since it's active high (1 is B)
+        //     joyp = setBit(joyp, 4); // turn off dpad
+        //     joyp = resetBit(joyp, 5); // setting the "button select" option
+        //     gameboy->mmu.writeByte(Mmu::P1, joyp);
+        //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
+        //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
+        //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
+        // }
+        // else if (event.key.keysym.scancode == SDL_SCANCODE_RETURN) { // Start
+        //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
+        //     joyp = resetBit(joyp, 3); // setting to 0 since it's active high (1 is B)
+        //     joyp = setBit(joyp, 4); // turn off dpad
+        //     joyp = resetBit(joyp, 5); // setting the "button select" option
+        //     gameboy->mmu.writeByte(Mmu::P1, joyp);
+        //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
+        //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
+        //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
+        // }
+        // else if (event.key.keysym.scancode == SDL_SCANCODE_RSHIFT) {} // Select
+        // else if (event.key.keysym.scancode == SDL_SCANCODE_A) {}
+        // else if (event.key.keysym.scancode == SDL_SCANCODE_A) {}
+    }
 }
 
 void Emulator::renderMenuBar() {
@@ -199,7 +233,7 @@ void Emulator::renderMenuBar() {
         if (ImGui::BeginMenu("File")){
             if (ImGui::Button("Open File")) {
                 FileHandler file = getFileFromUser();
-                if (sizeof(file) > 0) { // todo, check what happens when a user hits cancel, and if file isn't the right type (extension)
+                if (file.isDmg) {
                     gameboy.emplace(file.readFile());
                     createGameboyTextures();
                 } else {
@@ -244,7 +278,12 @@ void Emulator::renderMenuBar() {
         if (ImGui::Begin("Debug", &showDebugMenu)) {
             Byte lcdcBin = gameboy->mmu.readByte(Mmu::LCDC);
             Byte statBin = gameboy->mmu.readByte(Mmu::STAT);
+            Byte bgPal = gameboy->mmu.readByte(Mmu::BGP);
             Byte ly = gameboy->mmu.readByte(Mmu::LY);
+            Byte joyp = gameboy->mmu.readByte(Mmu::P1);
+            Byte _if = gameboy->mmu.readByte(Mmu::IF);
+            Byte _ie = gameboy->mmu.interruptEnableRegister;
+            Byte _ime = gameboy->cpu.IME;
             ImGui::Text("A: 0x%02x\tF: 0x%02x", gameboy->cpu.A, gameboy->cpu.F);
             ImGui::Text("B: 0x%02x\tC: 0x%02x", gameboy->cpu.B, gameboy->cpu.C);
             ImGui::Text("D: 0x%02x\tE: 0x%02x", gameboy->cpu.D, gameboy->cpu.E);
@@ -252,7 +291,10 @@ void Emulator::renderMenuBar() {
             ImGui::Text("PC: 0x%04x\tSP: 0x%02x", gameboy->cpu.PC, gameboy->cpu.SP);
             ImGui::Text("LCDC: 0b%s", std::bitset<8>(lcdcBin).to_string().c_str());
             ImGui::Text("STAT: 0b%s", std::bitset<8>(statBin).to_string().c_str());
+            ImGui::Text("Palette: 0b%s", std::bitset<8>(bgPal).to_string().c_str());
             ImGui::Text("LY: 0x%02x", ly);
+            ImGui::Text("JOYP: 0x%02x", joyp);
+            ImGui::Text("IF: 0x%02x, IE: %02x, IME: %d", _if, _ie, _ime);
         }
         ImGui::End();
     }
@@ -264,16 +306,18 @@ FileHandler Emulator::getFileFromUser() {
 
     if (result == NFD_OKAY) {
         // std::string filePath(outPath);
-        std::cout << "successfully got file path: " << outPath << std::endl;
+        // std::cout << "successfully got file path: " << outPath << std::endl;
+        printf("successfully got file path: %s\n", outPath);
         puts(outPath);
         std::string str_filePath(outPath);
         free(outPath);
         return FileHandler(str_filePath);
 
     } else if (result == NFD_CANCEL) {
-        std::cout << "User canceled the dialog." << std::endl;
+        printf("User canceled the dialog.");
     } else {
-        std::cerr << "Error: " << NFD_GetError() << std::endl;
+        // std::cerr << "Error: " << NFD_GetError() << std::endl;
+        printf("Error: %s\n", NFD_GetError());
     }
     return FileHandler("");
 }

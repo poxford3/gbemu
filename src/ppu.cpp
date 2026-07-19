@@ -7,6 +7,13 @@ Ppu::Ppu() {}
 
 void Ppu::reset() {
     tileData.fill(0);
+    for (int i = 0; i < frameBuffer.size(); i++) {
+        if (i % 2 == 0) {
+            frameBuffer[i] = 1;
+        } else {
+            frameBuffer[i] = 0;
+        }
+    }
     palette = BlackWhite;
     // palette = GameboyGreen;
 }
@@ -88,6 +95,53 @@ void Ppu::LCDStatus(Mmu &memory) {
 }
 
 
+void Ppu::loadOamToFrameBuffer(Mmu &memory) {
+    // https://gbdev.io/pandocs/OAM.html
+    Byte lcdc = memory.readByte(Mmu::LCDC);
+    for (int i = 0; i < oamSize; i+=4) {
+        
+        Byte mode = getBit(lcdc, 2); // 0 = 8x8, 1 = 8x16
+        Byte yPos = memory.readByte(oamStart + i);
+        Byte xPos = memory.readByte(oamStart + i + 1);
+        Byte tileId = memory.readByte(oamStart + i + 2);
+        Byte attFlags = memory.readByte(oamStart + i + 3); // Attributes/Flags
+        bool priority = getBit(attFlags, 7);
+        bool yFlip = getBit(attFlags, 6);
+        bool xFlip = getBit(attFlags, 5);
+        bool dmgPalette = getBit(attFlags, 4);
+        Byte objPalette = memory.readByte(dmgPalette ? Mmu::OBP1 : Mmu::OBP0);
+        // bool bank = getBit(attFlags, 3); // CGB only
+        // Byte cgbPalette = attFlags & 0x7; // gets the last 3 bits (0b0111)
+
+        for (int row = 0; row <= 7; row++) {
+            if (yFlip) row = 7 - row; // invert y coords
+            Byte lo = memory.readByte(0x8000 + tileId + (row * 2));
+            Byte hi = memory.readByte(0x8000 + tileId + (row * 2) + 1);
+            for (int col = 0; col <= 7; col++) {
+                if (priority && frameBuffer[xPos + yPos] > 0) continue;
+                if (xFlip) col = 7 - col; // invert x coords
+
+                Byte paletteId = getBit(lo, 7 - col) | (getBit(hi, 7 - col) << 1);
+
+                Byte colorIndex = objPalette >> (paletteId * 2) & 0b11;
+                SDL_Color c;
+                switch (colorIndex) {
+                    case 0: c = palette.getColor(WHITE);        break;
+                    case 1: c = palette.getColor(LIGHT_GRAY);   break;
+                    case 2: c = palette.getColor(DARK_GRAY);    break;
+                    case 3: c = palette.getColor(BLACK);        break;
+                    default: c = palette.getColor(WHITE);       break;
+                }
+
+                frameBuffer[xPos + yPos] = c.r; 
+                frameBuffer[xPos + yPos + 1] = c.g; 
+                frameBuffer[xPos + yPos + 2] = c.b; 
+
+            }
+        }
+    }
+}
+
 void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
     if (currentLine >= GAMEBOY_HEIGHT) {
         printf("loadScanline out of bounds: %d\n", currentLine);
@@ -138,31 +192,6 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
         frameBuffer[index + 0] = c.r; // r
         frameBuffer[index + 1] = c.g; // g
         frameBuffer[index + 2] = c.b; // b
-
-        // if (currentLine == 0 && col < 16)
-        // {
-        //     printf(
-        //         "x=%d tile=(%d,%d) map=%04X id=%02X addr=%04X row=%d lo=%02X hi=%02X\n",
-        //         col,
-        //         currentTileRow,
-        //         currentTileCol,
-        //         tileMapAddress,
-        //         tileId,
-        //         tileAddress,
-        //         tileRow,
-        //         lo,
-        //         hi
-        //     );
-        // }
-        // printf("LCDC=%02X bit4=%d tileBase=%04X\n",
-        // lcdc,
-        // getBit(lcdc,4),
-        // tileDataStart);
-        // for (int i = 0; i < 16; i++)
-        // {
-        //     printf("%02X ", memory.readByte(tileAddress + i));
-        // }
-        // printf("\n");
     }    
 }
 
@@ -189,7 +218,9 @@ void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
         } else if (currentLine > 153) {
             memory.writeByte(Mmu::LY, 0);
         } else if (currentLine < 144) {
+            // printf("rendering scanline: %d\n", currentLine);
             loadScanline(memory, currentLine);
+            loadOamToFrameBuffer(memory);
         }
         memory.writeByte(Mmu::LY, memory.readByte(Mmu::LY) + 1);
     }
