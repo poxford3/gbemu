@@ -45,9 +45,9 @@ class Ppu {
         void updateGraphics(Cpu &cpu, Mmu &memory, uint cycles);
         void loadTileData(Mmu &memory);
     private:
-        Word oamStart = 0xFE00;
-        Byte oamSize = 0x9F;
-        void loadOamToFrameBuffer(Mmu &memory);
+        static const Word oamStart = 0xFE00;
+        static const Byte oamSize = 0x9F;
+        void loadOamToFrameBuffer(Mmu &memory, Byte currentLine); // load sprites in, can potentially rename
         void loadScanline(Mmu &memory, Byte currentLine);
         void LCDStatus(Mmu &memory);
 };

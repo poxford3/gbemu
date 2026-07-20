@@ -95,14 +95,14 @@ void Ppu::LCDStatus(Mmu &memory) {
 }
 
 
-void Ppu::loadOamToFrameBuffer(Mmu &memory) {
+void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte currentLine) {
     // https://gbdev.io/pandocs/OAM.html
     Byte lcdc = memory.readByte(Mmu::LCDC);
     for (int i = 0; i < oamSize; i+=4) {
-        
-        Byte mode = getBit(lcdc, 2); // 0 = 8x8, 1 = 8x16
-        Byte yPos = memory.readByte(oamStart + i);
-        Byte xPos = memory.readByte(oamStart + i + 1);
+
+        bool mode = getBit(lcdc, 2); // 0 = 8x8, 1 = 8x16
+        int yPos = memory.readByte(oamStart + i) - 16; // the data is given as yPos + 16
+        int xPos = memory.readByte(oamStart + i + 1) - 8; // the data is given as xPos + 8
         Byte tileId = memory.readByte(oamStart + i + 2);
         Byte attFlags = memory.readByte(oamStart + i + 3); // Attributes/Flags
         bool priority = getBit(attFlags, 7);
@@ -110,33 +110,49 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory) {
         bool xFlip = getBit(attFlags, 5);
         bool dmgPalette = getBit(attFlags, 4);
         Byte objPalette = memory.readByte(dmgPalette ? Mmu::OBP1 : Mmu::OBP0);
-        // bool bank = getBit(attFlags, 3); // CGB only
+        Byte ySize = mode ? 16 : 8;
+        // CGB only
+        // bool bank = getBit(attFlags, 3);
         // Byte cgbPalette = attFlags & 0x7; // gets the last 3 bits (0b0111)
 
-        for (int row = 0; row <= 7; row++) {
-            if (yFlip) row = 7 - row; // invert y coords
-            Byte lo = memory.readByte(0x8000 + tileId + (row * 2));
-            Byte hi = memory.readByte(0x8000 + tileId + (row * 2) + 1);
-            for (int col = 0; col <= 7; col++) {
-                if (priority && frameBuffer[xPos + yPos] > 0) continue;
-                if (xFlip) col = 7 - col; // invert x coords
+        if ((currentLine >= yPos) && (currentLine < yPos + ySize)) { // does the LY contain the sprite?
+            int rowUsed = currentLine - yPos;
+            if (yFlip) {
+                rowUsed -= ySize;
+                rowUsed *= -1;
+            }
+            Word tileAddress = 0x8000 + (tileId * 16) + (rowUsed * 2); // sprites always read starting from 0x8000
+            Byte lo = memory.readByte(tileAddress);
+            Byte hi = memory.readByte(tileAddress + 1);
+            for (int col = 7; col >= 0; --col) {
+                if (xPos < 0 || yPos < 0) continue;
+                int colUsed = col;
+                if (xFlip) {
+                    colUsed -= 7;
+                    colUsed *= -1;
+                }
 
-                Byte paletteId = getBit(lo, 7 - col) | (getBit(hi, 7 - col) << 1);
+                Byte paletteId = getBit(lo, 7 - colUsed) | (getBit(hi, 7 - colUsed) << 1);
 
                 Byte colorIndex = objPalette >> (paletteId * 2) & 0b11;
+                if (colorIndex == 0) continue; // white is transparent, so no need to render it
                 SDL_Color c;
                 switch (colorIndex) {
-                    case 0: c = palette.getColor(WHITE);        break;
                     case 1: c = palette.getColor(LIGHT_GRAY);   break;
                     case 2: c = palette.getColor(DARK_GRAY);    break;
                     case 3: c = palette.getColor(BLACK);        break;
                     default: c = palette.getColor(WHITE);       break;
                 }
 
-                frameBuffer[xPos + yPos] = c.r; 
-                frameBuffer[xPos + yPos + 1] = c.g; 
-                frameBuffer[xPos + yPos + 2] = c.b; 
+                int xPixel = 0 - colUsed;
+                xPixel += 7;
+                // int index = xPos + xPixel;
+                int index = ((currentLine * GAMEBOY_WIDTH) + xPos + xPixel) * 3;
+                if (priority && frameBuffer[index] > 0) continue;
 
+                frameBuffer[index] = c.r;
+                frameBuffer[index + 1] = c.g;
+                frameBuffer[index + 2] = c.b;
             }
         }
     }
@@ -151,6 +167,8 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
     Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
     Byte scrollx = memory.readByte(Mmu::SCX);
     Byte scrolly = memory.readByte(Mmu::SCY);
+    Byte winX = memory.readByte(Mmu::WX);
+    Byte winY = memory.readByte(Mmu::WY);
     Word bgPalette = memory.readByte(Mmu::BGP);
     Word tileMapStart = (getBit(lcdc, 3) == 1) ? 0x9c00 : 0x9800;
     Word tileDataStart = (getBit(lcdc, 4) == 1) ? 0x8000 : 0x9000;
@@ -220,7 +238,7 @@ void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
         } else if (currentLine < 144) {
             // printf("rendering scanline: %d\n", currentLine);
             loadScanline(memory, currentLine);
-            loadOamToFrameBuffer(memory);
+            loadOamToFrameBuffer(memory, currentLine);
         }
         memory.writeByte(Mmu::LY, memory.readByte(Mmu::LY) + 1);
     }

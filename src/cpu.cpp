@@ -1798,12 +1798,11 @@ uint Cpu::executeInstructions(Byte opcode, Mmu &memory) {
         case 0xF4:
         case 0xFC:
         case 0xFD: {
-            // todo, implement a crash system for invalid opcodes
-            printf("illegal opcode: 0x%02x", opcode);
+            printf("illegal opcode: 0x%02x at PC: 0x%04x\n", opcode, PC);
             break;
         }
         default:
-                printf("Unknown opcode: 0x%02x\n", opcode);
+                printf("Unknown opcode: 0x%02x at PC: 0x%04x\n", opcode, PC);
                 break;
     }
     return cycles;
@@ -3188,11 +3187,8 @@ uint Cpu::executeExtendedOpcode(Byte opcode, Mmu &memory) {
             exCycles = opcyclesExtended[opcode];
             break;
         }
-
-        // TODO
         default:
-            // std::cout << "Unknown extended opcode: 0xCB 0x" << std::hex << static_cast<int>(opcode) << std::dec << std::endl;
-            printf("Unknown extended opcode: 0xCB 0x%02x\n", opcode);
+            printf("Unknown extended opcode: 0xCB 0x%02x at PC: 0x%04x\n", opcode, PC);
             break;
     }
     return exCycles;
