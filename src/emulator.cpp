@@ -173,62 +173,94 @@ void Emulator::run() {
     }
 }
 
+void Emulator::showRamContents() {
+    if (ImGui::Begin("RAM Viewer")) {
+        // address input to jump to a location
+        // static int jumpAddr = 0;
+        // ImGui::InputInt("Address", &jumpAddr, 1, 16, ImGuiInputTextFlags_CharsHexadecimal);
+        
+        ImGui::BeginChild("##ram", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+        
+        // print 16 bytes per row
+        for (int addr = 0; addr < 0x10000; addr += 16) {
+            // address column
+            ImGui::Text("%04X: ", addr);
+            ImGui::SameLine();
+            
+            // hex columns
+            for (int i = 0; i < 16; i++) {
+                Byte val = gameboy->mmu.readByte(addr + i);
+                ImGui::Text("%02X", val);
+                ImGui::SameLine();
+            }
+            
+            // ascii column
+            ImGui::Text(" | ");
+            ImGui::SameLine();
+            for (int i = 0; i < 16; i++) {
+                Byte val = gameboy->mmu.readByte(addr + i);
+                char c = (val >= 32 && val < 127) ? val : '.';
+                ImGui::Text("%c", c);
+                ImGui::SameLine();
+            }
+            ImGui::NewLine();
+        }
+        
+        ImGui::EndChild();
+    }
+    ImGui::End();
+}
+
 
 void Emulator::handleInput(SDL_Event &event) {
-    if (event.type == SDL_QUIT) {
-        running = false;
+    if (event.type == SDL_QUIT) running = false;
+
+    if (event.type == SDL_KEYDOWN && event.key.keysym.scancode == SDL_SCANCODE_P) {
+        if (gameboy.has_value()) {
+            paused = !paused;
+        }
     }
-    if (event.type == SDL_KEYDOWN) {
-        if (event.key.keysym.scancode == SDL_SCANCODE_P) {
-            if (gameboy.has_value()) {
-                paused = !paused;
-            }
-        } else if (event.key.keysym.scancode == SDL_SCANCODE_S) {
-            if (gameboy.has_value()) {
-                if (gameboy->ppu.palette.selectedPalette == PaletteOptions::GameboyGreen) {
-                    gameboy->ppu.palette.selectedPalette = PaletteOptions::BlackWhite;
-                } else {
-                    gameboy->ppu.palette.selectedPalette = PaletteOptions::GameboyGreen;
-                }
-            }
-        } 
-        // else if (event.key.keysym.scancode == SDL_SCANCODE_A) { // B button // needs lots of work
-        //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
-        //     joyp = resetBit(joyp, 1); // setting to 0 since it's active high (1 is B)
-        //     joyp = setBit(joyp, 4); // turn off dpad
-        //     joyp = resetBit(joyp, 5); // setting the "button select" option
-        //     gameboy->mmu.writeByte(Mmu::P1, joyp);
-        //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
-        //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
-        //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
-        // }
-        // else if (event.key.keysym.scancode == SDL_SCANCODE_X) { // A button
-        //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
-        //     joyp = resetBit(joyp, 0); // setting to 0 since it's active high (1 is B)
-        //     joyp = setBit(joyp, 4); // turn off dpad
-        //     joyp = resetBit(joyp, 5); // setting the "button select" option
-        //     gameboy->mmu.writeByte(Mmu::P1, joyp);
-        //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
-        //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
-        //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
-        // }
-        // else if (event.key.keysym.scancode == SDL_SCANCODE_RETURN) { // Start
-        //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
-        //     joyp = resetBit(joyp, 3); // setting to 0 since it's active high (1 is B)
-        //     joyp = setBit(joyp, 4); // turn off dpad
-        //     joyp = resetBit(joyp, 5); // setting the "button select" option
-        //     gameboy->mmu.writeByte(Mmu::P1, joyp);
-        //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
-        //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
-        //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
-        // }
-        // else if (event.key.keysym.scancode == SDL_SCANCODE_RSHIFT) {} // Select
-        // else if (event.key.keysym.scancode == SDL_SCANCODE_A) {}
-        // else if (event.key.keysym.scancode == SDL_SCANCODE_A) {}
-    }
+    // else if (event.key.keysym.scancode == SDL_SCANCODE_A) { // B button // needs lots of work
+    //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
+    //     joyp = resetBit(joyp, 1); // setting to 0 since it's active high (1 is B)
+    //     joyp = setBit(joyp, 4); // turn off dpad
+    //     joyp = resetBit(joyp, 5); // setting the "button select" option
+    //     gameboy->mmu.writeByte(Mmu::P1, joyp);
+    //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
+    //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
+    //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
+    // }
+    // else if (event.key.keysym.scancode == SDL_SCANCODE_X) { // A button
+    //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
+    //     joyp = resetBit(joyp, 0); // setting to 0 since it's active high (1 is B)
+    //     joyp = setBit(joyp, 4); // turn off dpad
+    //     joyp = resetBit(joyp, 5); // setting the "button select" option
+    //     gameboy->mmu.writeByte(Mmu::P1, joyp);
+    //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
+    //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
+    //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
+    // }
+    // else if (event.key.keysym.scancode == SDL_SCANCODE_RETURN) { // Start
+    //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
+    //     joyp = resetBit(joyp, 3); // setting to 0 since it's active high (1 is B)
+    //     joyp = setBit(joyp, 4); // turn off dpad
+    //     joyp = resetBit(joyp, 5); // setting the "button select" option
+    //     gameboy->mmu.writeByte(Mmu::P1, joyp);
+    //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
+    //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
+    //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
+    // }
+    // else if (event.key.keysym.scancode == SDL_SCANCODE_RSHIFT) {} // Select
+    // else if (event.key.keysym.scancode == SDL_SCANCODE_A) {}
+    // else if (event.key.keysym.scancode == SDL_SCANCODE_A) {}
+}
+
+void modifyJoyp(int key) {
+
 }
 
 void Emulator::renderMenuBar() {
+    ImGui::SetNextWindowSize(ImVec2(100, 200), ImGuiCond_FirstUseEver);
     if (ImGui::BeginMainMenuBar()){
         if (ImGui::BeginMenu("File")){
             if (ImGui::Button("Open File")) {
@@ -256,7 +288,29 @@ void Emulator::renderMenuBar() {
                if (ImGui::InputInt("Gameboy Scale (1-4)", &winScale, 1)) {
                 gameboy->ppu.winScale = std::clamp(winScale, 1, 4); // set limit to 1-4
                }
-               ImGui::EndMenu();
+
+            ImGui::SetNextItemWidth(150.0f);
+            const char* palOptions[2] = {"Black/White", "Gameboy Green"};
+            static int selectedPalIdx = 0;
+            const char* selectedPal = palOptions[selectedPalIdx];
+
+            if (ImGui::BeginCombo("Choose Palette", selectedPal)) {
+                for (int i = 0; i < IM_COUNTOF(palOptions); i++) {
+
+                    const bool isSelected = (selectedPalIdx == i);
+                    if (ImGui::Selectable(palOptions[i], isSelected)) {
+                        selectedPalIdx = i;
+                    }
+
+                    // focus on the selected one first
+                    if (isSelected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            gameboy->ppu.palette.selectedPalette = static_cast<PaletteOptions>(selectedPalIdx);
+            ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Debug")) {
                 if (ImGui::Button("Open Gameboy Stats")) {
@@ -265,6 +319,13 @@ void Emulator::renderMenuBar() {
                 if (ImGui::Button("Show Tile Data")) {
                     showTileData = !showTileData;
                 }
+                if (ImGui::Button("Show RAM Contents")) {
+                    doShowRamContents = true;
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Save States")) {
+                ImGui::Text("come back later");
                 ImGui::EndMenu();
             }
         }
@@ -297,6 +358,10 @@ void Emulator::renderMenuBar() {
             ImGui::Text("IF: 0x%02x, IE: %02x, IME: %d", _if, _ie, _ime);
         }
         ImGui::End();
+    }
+
+    if (doShowRamContents) {
+        showRamContents();
     }
 }
 

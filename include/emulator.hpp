@@ -26,6 +26,7 @@ class Emulator {
         bool paused;
         bool showDebugMenu;
         bool showTileData;
+        bool doShowRamContents;
         int emulatorScreenWidth = 300;
         int emulatorScreenHeight = 150;
         SDL_Window* window;
@@ -37,8 +38,10 @@ class Emulator {
         std::optional<Gameboy> gameboy;
 
         void handleInput(SDL_Event &event);
+        void modifyJoyp(int key);
         void createGameboyTextures();
         void renderMenuBar();
+        void showRamContents();
 
 };
 

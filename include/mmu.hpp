@@ -82,13 +82,17 @@ class Mmu {
         static const Word SVBK = 0xFF70;    // WRAM bank
         
         
+        std::vector<Byte> entireRom;
+
         void reset();
         void loadRom(const std::vector<Byte>& program);
         void writeByte(Word address, Byte value);
         Byte readByte(Word address);  
-        int8_t readInt(Word address);  
+        int8_t readInt(Word address);
+
+        Byte joyp_buttons = 0xF0;
+        Byte jopy_dpad = 0xF0;
         
-        std::vector<Byte> entireRom; // max ROM size is 2MB, allocating that
     private:
         // https://gbdev.io/pandocs/The_Cartridge_Header.html#0147--cartridge-type
         void handleRomWrite(Word address, Byte value);

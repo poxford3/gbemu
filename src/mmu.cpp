@@ -315,6 +315,9 @@ void Mmu::writeByte(Word address, Byte value) {
 Byte Mmu::readByte(Word address) {
 
     if (address >= 0xFF00 && address <= 0xFF7F) {
+        if (address == 0xFF00) {
+            // printf("setting joypad\n");
+        }
         return ioRegisters[address - 0xFF00];
     } else if (address == 0xFFFF) {
         return interruptEnableRegister; 

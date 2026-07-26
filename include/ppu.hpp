@@ -42,7 +42,7 @@ class Ppu {
         // 4 bytes per pixel for sprites (transparency being the 4th)
         std::array<Byte, GAMEBOY_HEIGHT * GAMEBOY_WIDTH * 4> frameBufferObj;
         std::array<Byte, TILEDATA_HEIGHT * TILEDATA_WIDTH * 3> tileData;
-        void updateGraphics(Cpu &cpu, Mmu &memory, uint cycles);
+        void updateGraphics(Mmu &memory, uint cycles);
         void loadTileData(Mmu &memory);
     private:
         static const Word oamStart = 0xFE00;

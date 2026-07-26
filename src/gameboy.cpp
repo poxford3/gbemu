@@ -106,7 +106,7 @@ void Gameboy::updateTimer(uint cycles) {
 
 
 void Gameboy::updateGraphics(uint cycles) {
-    ppu.updateGraphics(cpu, mmu, cycles);
+    ppu.updateGraphics(mmu, cycles);
 }
 
 

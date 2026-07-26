@@ -14,7 +14,7 @@ void Ppu::reset() {
             frameBuffer[i] = 0;
         }
     }
-    palette = BlackWhite;
+    palette.selectedPalette = BlackWhite;
     // palette = GameboyGreen;
 }
 
@@ -164,6 +164,11 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
         return;
     }
 
+    if (currentLine == 0) {
+        printf("LY 0\n");
+        printf("palette: %d\n", palette.selectedPalette);
+    }
+
     Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
     Byte scrollx = memory.readByte(Mmu::SCX);
     Byte scrolly = memory.readByte(Mmu::SCY);
@@ -194,8 +199,6 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
 
         Byte bitToShift = (7 - (col + scrollx) % 8);
         Byte paletteId = getBit(lo, bitToShift) | (getBit(hi, bitToShift) << 1);
-        // formula used to determine color value from bg palette
-        // shifting over 2 bits at a time (change the 2 to the number of bits shifted)
         Byte colorIndex = bgPalette >> (paletteId * 2) & 0b11;
         SDL_Color c;
         switch (colorIndex) {
@@ -214,7 +217,13 @@ void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
 }
 
 
-void Ppu::updateGraphics(Cpu &cpu, Mmu &memory, uint cycles) {
+void Ppu::updateGraphics(Mmu &memory, uint cycles) {
+    // static uint64_t callCount = 0;
+    // callCount++;
+    // if (callCount % 100000 == 0) {
+    //     printf("updateGraphics called %llu times, scanlineCounter=%d LY=%d\n", 
+    //         callCount, scanlineCounter, memory.readByte(Mmu::LY));
+    // }
     
     LCDStatus(memory);
 
