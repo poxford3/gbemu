@@ -1,4 +1,6 @@
+#include <time.h>
 #include "mmu.hpp"
+#include "utils/bit.hpp"
 
 Mmu::Mmu() {
     std::fill(std::begin(romBank0), std::end(romBank0), 0);
@@ -246,23 +248,46 @@ void Mmu::handleRomWrite(Word address, Byte value) {
                     break;
                 }
                 case 0x01: { // ROM Bank Number
-                    currentRamBank = value & 0x7F;
+                    currentRomBank = value & 0x7F;
                     if (currentRomBank == 0x00) currentRomBank = 1;
                     swapRomBank(currentRomBank);
+                    break;
                 }
                 case 0x10: { // RAM Bank Number or RTC Register Select
-                    if (value <= 0x07) {
-                        // corresponding ram bank
-                    } else if (value <= 0x0C) {
-                        // corresponding rtc register
-                    }
+                    currentRamBank = value; // will check later if it's above or below 0x07
+                    break;
                 }
                 case 0x11: { // Latch Clock Data
-                    if (value == 0x00) latchStep1 = true;
-                    if (latchStep1 && value == 0x01) {
-                        // latch current time to RTC
-                        latchStep2 = true; // TODO finish MBC 3 (need to finish case 0x11 and handle RAM registers)
+                    if (prevVal == 0x00 && value == 0x01) {
+                        time_t now = time(nullptr);
+                        struct tm *t = localtime(&now);
+                        dayOF = false;
+
+                        if (day < 512) {
+                            day += 1;
+                            dayL = day & 0xFF;
+                            dayH = getBit((Word)day, 8); // cast day to a word to get the values (will be 511 or below)
+                        } else {
+                            day = 0;
+                            dayL = 0x00;
+                            dayH = false;
+                            dayOF = true;
+                        }
+
+                        Byte dh;
+                        if (dayOF) setBit(dh, 7);
+                        if (dayH) setBit(dh, 0);
+
+                        clockregs[RTC_S - 0x08] = t->tm_sec;    // seconds (0-59) ($00-$3B)
+                        clockregs[RTC_M - 0x08] = t->tm_min;    // minutes (0-59) ($00-$3B)
+                        clockregs[RTC_H - 0x08] = t->tm_hour;   // hours (0-23) ($00-$17)
+                        clockregs[RTC_DL - 0x08] = dayL;        // lower 8 bits of day counter ($00-$FF)
+                        clockregs[RTC_DH - 0x08] = dh;          // upper 1 bit of day counter, carry, and halt bits ($00-$C1)
+
+                    } else {
+                        prevVal = value;
                     }
+                    break;
                 }
             }
             break;
@@ -288,7 +313,13 @@ void Mmu::writeByte(Word address, Byte value) {
         VRam[address - 0x8000] = value;
     } else if (address >= 0xA000 && address <= 0xBFFF) {
         if (RAMEnabled) { // check if external RAM is enabled
-            externalRam[address - 0xA000] = value;
+            if (MBCType == 3 && currentRamBank >= 0x08 && currentRamBank <= 0x0C) {
+                // writing to RTC registers
+                selectedClockReg = currentRamBank;
+                clockregs[selectedClockReg - 0x08] = value;
+            } else {
+                externalRam[address - 0xA000] = value;
+            }
         }
     } else if (address >= 0xC000 && address <= 0xCFFF) {
         workRamBank0[address - 0xC000] = value;
@@ -327,6 +358,11 @@ Byte Mmu::readByte(Word address) {
         return romBankN[address - 0x4000];
     } else if (address >= 0xA000 && address <= 0xBFFF) {
         if (RAMSize > 0) { // todo verify this behavior (only putting out a value if it's enabled)
+            if (MBCType == 3 && currentRamBank >= 0x08 && currentRamBank <= 0x0C) {
+                // reading from RTC registers
+                selectedClockReg = currentRamBank;
+                return clockregs[selectedClockReg - 0x08];
+            }
             return externalRam[address - 0xA000];
         } else return 0xFF; // if external ram isn't enabled, often just returning 0xFF
     } else if (address >= 0x8000 && address <= 0x9FFF) {

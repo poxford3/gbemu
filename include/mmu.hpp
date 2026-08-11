@@ -113,16 +113,22 @@ class Mmu {
         uint RAMSize = 0; // 0x149 in ROM header
         bool RAMEnabled = false;
 
-        // MBC3 registers
-        bool latchStep1;
-        bool latchStep2;
-        bool latchRTC;
+        // MBC3 registers/vals
+        int day = 0; // used for day counter
+        Byte dayL = 0x00; // bottom 8 bits of day value
+        bool dayH = false; // high bit of day value
+        bool dayOF = false; // day overflow bit
+        Byte prevVal = 0xFF; // check what previous value was for latch
         // https://gbdev.io/pandocs/MBC3.html#clock-counter-registers
-        Byte RTC_S;     // seconds ($08)
-        Byte RTC_M;     // minutes ($09)
-        Byte RTC_H;     // hours   ($0A)
-        Byte RTC_DL;    // lower 8 bits of day counter ($0B)
-        Byte RTC_DH;    // upper 1 bit of day counter, carry, halt
+        enum ClockRegs {
+            RTC_S = 0x08,
+            RTC_M = 0x09,
+            RTC_H = 0x0A,
+            RTC_DL = 0x0B,
+            RTC_DH = 0x0C
+        };
+        Byte selectedClockReg;
+        Byte clockregs[5]; // 5 registers for the clock, see enum above
 
 };
 
