@@ -319,9 +319,9 @@ void Emulator::renderMenuBar() {
                 if (ImGui::Button("Show Tile Data")) {
                     showTileData = !showTileData;
                 }
-                if (ImGui::Button("Show RAM Contents")) {
-                    doShowRamContents = true;
-                }
+                // if (ImGui::Button("Show RAM Contents")) {
+                //     doShowRamContents = true;
+                // } // this needs lots of work, super laggy
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Save States")) {

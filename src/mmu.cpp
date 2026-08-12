@@ -131,6 +131,14 @@ void Mmu::getMBCType(Byte MBCvalue) {
         case 0x13: // MBC 3
             MBCType = 3;
             break;
+        case 0x1A:
+        case 0x1B:
+        case 0x1C:
+        case 0x1D:
+        case 0x1E: // MBC 5
+            MBCType = 5;
+            break;
+
     }
 }
 
@@ -289,6 +297,24 @@ void Mmu::handleRomWrite(Word address, Byte value) {
                     }
                     break;
                 }
+            }
+            break;
+        }
+        case 5: { // MBC5
+            if (address < 0x2000) { // RAM Enable
+                if ((value & 0x0F) == 0xA) { //  check bottom 4 bits to see if $A
+                        RAMEnabled = true;
+                    } else {
+                        RAMEnabled = false;
+                    }
+            } else if (address < 0x3000) { // ROM Bank Number (lower 8 bits)
+                currentRomBank = (currentRomBank & 0x100) | value; // set bottom 8 bits
+                swapRomBank(currentRomBank);
+            } else if (address < 0x4000) { // ROM Bank Number (9th bit)
+                currentRomBank = setBit(currentRomBank, 8);
+                swapRomBank(currentRomBank);
+            } else if (address < 0x6000) { // RAM Bank Number
+                currentRamBank = value & 0x0F; // only 4 bits for RAM bank number
             }
             break;
         }
