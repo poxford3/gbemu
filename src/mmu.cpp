@@ -314,6 +314,7 @@ void Mmu::handleRomWrite(Word address, Byte value) {
                 currentRomBank = setBit(currentRomBank, 8);
                 swapRomBank(currentRomBank);
             } else if (address < 0x6000) { // RAM Bank Number
+                // TODO make sure the RAM banking is all working correctly
                 currentRamBank = value & 0x0F; // only 4 bits for RAM bank number
             }
             break;

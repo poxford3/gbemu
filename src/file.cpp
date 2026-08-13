@@ -14,7 +14,7 @@ FileHandler::FileHandler(const std::string& filePath) : m_filePath{filePath} {
 
 /**
  * readFile()
- * @return std::vector<Byte> array of data from binary file
+ * @return `std::vector<Byte>` array of data from binary file
  */
 std::vector<Byte> FileHandler::readFile() {
     std::vector<Byte> buffer;
