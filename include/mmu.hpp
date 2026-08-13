@@ -12,15 +12,14 @@ class Mmu {
         Mmu();
 
         std::string title;
-
-        Byte romBank0[0x4000]; // first 16KB of cart, start 0x0000
-        Byte romBankN[0x4000]; // switchable 16KB bank, start 0x4000
-        Byte VRam[0x2000]; // 8KB of VRAM, start 0x8000
-        Byte workRamBank0[0x1000]; // 4KB of work RAM, start 0xC000
-        Byte workRamBankN[0x1000]; // switchable 4KB bank, start 0xD000
-        Byte oam[0xA0]; // Object Attribute Memory, start 0xFE00
-        Byte HRam[0x7F]; // High RAM, start 0xFF80
-        Byte ioRegisters[0x80]; // IO Regsiters, start 0xFF00
+        std::array<Byte, 0x4000> romBank0 = {0}; // first 16KB of cart, start 0x0000
+        std::array<Byte, 0x4000> romBankN = {0}; // switchable 16KB bank, start 0x4000
+        std::array<Byte, 0x2000> VRam = {0}; // 8KB of VRAM, start 0x8000
+        std::array<Byte, 0x1000> workRamBank0 = {0}; // 4KB of work RAM, start 0xC000
+        std::array<Byte, 0x1000> workRamBankN = {0}; // switchable 4KB bank, start 0xD000
+        std::array<Byte, 0xA0> oam = {0}; // Object Attribute Memory, start 0xFE00
+        std::array<Byte, 0x7F> HRam = {0}; // High RAM, start 0xFF80
+        std::array<Byte, 0x80> ioRegisters = {0}; // IO Regsiters, start 0xFF00
         Byte interruptEnableRegister; // IE Register, memory location 0xFFFF
         
         // io register addresses
@@ -108,7 +107,7 @@ class Mmu {
         Byte ROMSize = 0; // 0x148 in ROM header
 
         // Byte externalRam[0x8000]; // max size of external RAM is 32KB, so allocating plenty. Most use less
-        Byte externalRam[0x20000]; // max size of external RAM is 128kb, so allocating plenty. Most use less
+        std::array<Byte, 0x20000> externalRam = {0}; // max size of external RAM is 128kb, so allocating plenty. Most use less
         Byte currentRamBank = 0;
         uint RAMSize = 0; // 0x149 in ROM header
         bool RAMEnabled = false;
