@@ -18,8 +18,8 @@ public:
     void readRandomValues(const std::vector<unsigned char>& buffer, int start, int length);
     void readNthByte(const std::vector<unsigned char>& buffer, int n);
 
-    void createSaveFile(const std::string &saveFilePath, Cpu &cpu, Mmu &mmu);
-    void loadSaveFile(const std::string &saveFilePath, Cpu &cpu, Mmu &mmu);
+    // void createSaveFile(const std::string &saveFilePath, Cpu &cpu, Mmu &mmu);
+    // void loadSaveFile(const std::string &saveFilePath, Cpu &cpu, Mmu &mmu);
 
 private:
     std::string m_filePath;

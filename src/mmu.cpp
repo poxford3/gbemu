@@ -171,7 +171,7 @@ void Mmu::swapRomBank(Byte bank) {
 
     if (newStart + 0x4000 > entireRom.size()) return; // ensure new section stays within appropriate bounds
     // exclusive bound (everything up to 0x4000 for new end)
-    std::copy(entireRom.begin() + newStart, entireRom.begin() + newStart + 0x4000, romBankN);
+    std::copy(entireRom.begin() + newStart, entireRom.begin() + newStart + 0x4000, romBankN.begin());
 }
 
 
@@ -352,9 +352,17 @@ void Mmu::writeByte(Word address, Byte value) {
         workRamBank0[address - 0xC000] = value;
     } else if (address >= 0xD000 && address <= 0xDFFF) {
         workRamBankN[address - 0xD000] = value;
-    } else if (address >= 0xFE00 && address <= 0xFE9F) {
-        oam[address - 0xFE00] = value;
-    } else if (address >= 0xFF80 && address <= 0xFFFE) {
+    } 
+    // else if (address >= 0xFE00 && address <= 0xFE9F) {
+    //     printf("writing OAM at address 0x%04x, value is 0x%02x\n", address, value);
+    //     oam[address - 0xFE00] = value;
+    // } 
+    else if (address == 0xFF46) {
+        for (int i = 0; i < 0xA0; i++) {
+            oam[i] = readByte((value << 8) + i);
+        }
+    }
+    else if (address >= 0xFF80 && address <= 0xFFFE) {
         HRam[address - 0xFF80] = value;
     } else if (address >= 0xFF00 && address <= 0xFF7F) {
         if (address == DIV) {
@@ -403,6 +411,7 @@ Byte Mmu::readByte(Word address) {
     }else if (address >= 0xD000 && address <= 0xDDFF) {
         return workRamBankN[address - 0xD000];
     } else if (address >= 0xFE00 && address <= 0xFE9F) {
+        // printf("reading from OAM at address 0x%04x, value is 0x%02x\n", address, oam[address - 0xFE00]);
         return oam[address - 0xFE00];
     } else if (address >= 0xFEA0 && address <= 0xFEFF) {
         std::cerr << "Warning: attempting to access prohibited section of memory at address 0x" << std::hex << address << std::dec << std::endl;

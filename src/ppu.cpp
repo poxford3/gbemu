@@ -103,19 +103,22 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte currentLine) {
         bool mode = getBit(lcdc, 2); // 0 = 8x8, 1 = 8x16
         int yPos = memory.readByte(oamStart + i) - 16; // the data is given as yPos + 16
         int xPos = memory.readByte(oamStart + i + 1) - 8; // the data is given as xPos + 8
-        Byte tileId = memory.readByte(oamStart + i + 2);
-        Byte attFlags = memory.readByte(oamStart + i + 3); // Attributes/Flags
-        bool priority = getBit(attFlags, 7);
-        bool yFlip = getBit(attFlags, 6);
-        bool xFlip = getBit(attFlags, 5);
-        bool dmgPalette = getBit(attFlags, 4);
-        Byte objPalette = memory.readByte(dmgPalette ? Mmu::OBP1 : Mmu::OBP0);
         Byte ySize = mode ? 16 : 8;
-        // CGB only
-        // bool bank = getBit(attFlags, 3);
-        // Byte cgbPalette = attFlags & 0x7; // gets the last 3 bits (0b0111)
 
         if ((currentLine >= yPos) && (currentLine < yPos + ySize)) { // does the LY contain the sprite?
+            // printf("rendering sprite at LY=%d, xPos=%d, yPos=%d\n", currentLine, xPos, yPos);
+            Byte tileId = memory.readByte(oamStart + i + 2);
+            Byte attFlags = memory.readByte(oamStart + i + 3); // Attributes/Flags
+            bool priority = getBit(attFlags, 7);
+            bool yFlip = getBit(attFlags, 6);
+            bool xFlip = getBit(attFlags, 5);
+            bool dmgPalette = getBit(attFlags, 4);
+            Byte objPalette = memory.readByte(dmgPalette ? Mmu::OBP1 : Mmu::OBP0);
+            
+            // CGB only
+            // bool bank = getBit(attFlags, 3);
+            // Byte cgbPalette = attFlags & 0x7; // gets the last 3 bits (0b0111)
+
             int rowUsed = currentLine - yPos;
             if (yFlip) {
                 rowUsed -= ySize;
@@ -135,39 +138,37 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte currentLine) {
                 Byte paletteId = getBit(lo, 7 - colUsed) | (getBit(hi, 7 - colUsed) << 1);
 
                 Byte colorIndex = objPalette >> (paletteId * 2) & 0b11;
-                if (colorIndex == 0) continue; // white is transparent, so no need to render it
                 SDL_Color c;
                 switch (colorIndex) {
+                    case 0: break;
                     case 1: c = palette.getColor(LIGHT_GRAY);   break;
                     case 2: c = palette.getColor(DARK_GRAY);    break;
                     case 3: c = palette.getColor(BLACK);        break;
-                    default: c = palette.getColor(WHITE);       break;
                 }
 
-                int xPixel = 0 - colUsed;
-                xPixel += 7;
-                // int index = xPos + xPixel;
-                int index = ((currentLine * GAMEBOY_WIDTH) + xPos + xPixel) * 3;
-                if (priority && frameBuffer[index] > 0) continue;
+                if (colorIndex > 0) { // if the color is not transparent, draw it
+                    int index = ((currentLine * GAMEBOY_WIDTH) + xPos + colUsed) * 3;
+                    if (priority && frameBuffer[index] > 0) continue;
 
-                frameBuffer[index] = c.r;
-                frameBuffer[index + 1] = c.g;
-                frameBuffer[index + 2] = c.b;
+                    frameBuffer[index] = c.r;
+                    frameBuffer[index + 1] = c.g;
+                    frameBuffer[index + 2] = c.b;
+                }
             }
         }
     }
 }
 
-void Ppu::loadScanline(Mmu &memory, Byte currentLine) {
+void Ppu::loadBgToFrameBuffer(Mmu &memory, Byte currentLine) {
     if (currentLine >= GAMEBOY_HEIGHT) {
         printf("loadScanline out of bounds: %d\n", currentLine);
         return;
     }
 
-    if (currentLine == 0) {
-        printf("LY 0\n");
-        printf("palette: %d\n", palette.selectedPalette);
-    }
+    // if (currentLine == 0) {
+    //     printf("LY 0\n");
+    //     printf("palette: %d\n", palette.selectedPalette);
+    // }
 
     Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
     Byte scrollx = memory.readByte(Mmu::SCX);
@@ -246,7 +247,7 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
             memory.writeByte(Mmu::LY, 0);
         } else if (currentLine < 144) {
             // printf("rendering scanline: %d\n", currentLine);
-            loadScanline(memory, currentLine);
+            loadBgToFrameBuffer(memory, currentLine);
             loadOamToFrameBuffer(memory, currentLine);
         }
         memory.writeByte(Mmu::LY, memory.readByte(Mmu::LY) + 1);
