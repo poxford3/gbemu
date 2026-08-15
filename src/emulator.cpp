@@ -106,6 +106,7 @@ void Emulator::createGameboyTextures() {
     SDL_SetWindowSize(window, gameboy->ppu.EMULATOR_SCREEN_WIDTH(), gameboy->ppu.EMULATOR_SCREEN_HEIGHT());
 }
 
+
 void Emulator::run() {
     while (running) {
 
@@ -172,6 +173,7 @@ void Emulator::run() {
         SDL_Delay(16); // 16 ms = 60 fps
     }
 }
+
 
 void Emulator::showRamContents() {
     if (ImGui::Begin("RAM Viewer")) {
@@ -255,9 +257,6 @@ void Emulator::handleInput(SDL_Event &event) {
     // else if (event.key.keysym.scancode == SDL_SCANCODE_A) {}
 }
 
-void modifyJoyp(int key) {
-
-}
 
 void Emulator::renderMenuBar() {
     ImGui::SetNextWindowSize(ImVec2(100, 200), ImGuiCond_FirstUseEver);
@@ -272,6 +271,13 @@ void Emulator::renderMenuBar() {
                     printf("no file selected, please select a file to run the emulator\n");
                 }
             }
+            // TODO implement, need to find a way to move the rom around
+            // if (gameboy.has_value()) {
+            //     if (ImGui::Button("Reset")) {
+            //         gameboy->reset();
+            //         createGameboyTextures();
+            //     }
+            // }
             ImGui::EndMenu();
         }
         if (gameboy.has_value()) {

@@ -38,7 +38,6 @@ class Emulator {
         std::optional<Gameboy> gameboy;
 
         void handleInput(SDL_Event &event);
-        void modifyJoyp(int key);
         void createGameboyTextures();
         void renderMenuBar();
         void showRamContents();

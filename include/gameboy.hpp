@@ -17,6 +17,7 @@ class Gameboy {
         Gameboy(const std::vector<Byte>& program);
         ~Gameboy();
         void start();
+        void reset();
         void runFrame();
         Cpu cpu;
         Mmu mmu;

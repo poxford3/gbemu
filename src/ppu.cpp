@@ -87,7 +87,7 @@ void Ppu::LCDStatus(Mmu &memory) {
                 IFreg = setBit(IFreg, 1); // set the 1th bit to 1
                 memory.writeByte(Mmu::IF, IFreg);
             } else {
-                lcdStat = resetBit(lcdStat, 1);  // set the 1th bit to 0
+                lcdStat = resetBit(lcdStat, 2);  // set the 2th bit to 0
             }
         }
         memory.writeByte(Mmu::STAT, lcdStat);
@@ -95,9 +95,8 @@ void Ppu::LCDStatus(Mmu &memory) {
 }
 
 
-void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte currentLine) {
+void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc) {
     // https://gbdev.io/pandocs/OAM.html
-    Byte lcdc = memory.readByte(Mmu::LCDC);
     for (int i = 0; i < oamSize; i+=4) {
 
         bool mode = getBit(lcdc, 2); // 0 = 8x8, 1 = 8x16
@@ -146,7 +145,7 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte currentLine) {
                     case 3: c = palette.getColor(BLACK);        break;
                 }
 
-                if (colorIndex > 0) { // if the color is not transparent, draw it
+                if (paletteId > 0) { // if the color is not transparent, draw it
                     int index = ((currentLine * GAMEBOY_WIDTH) + xPos + colUsed) * 3;
                     if (priority && frameBuffer[index] > 0) continue;
 
@@ -159,22 +158,67 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte currentLine) {
     }
 }
 
-void Ppu::loadBgToFrameBuffer(Mmu &memory, Byte currentLine) {
+
+void Ppu::loadWinToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc) {
+    if (currentLine >= GAMEBOY_HEIGHT) {
+        printf("loadScanline out of bounds: %d\n", currentLine);
+        return;
+    }
+    Byte winX = memory.readByte(Mmu::WX) - 7; // window x pos is offset by 7, subtracting 7 to get actual pos
+    Byte winY = memory.readByte(Mmu::WY);
+    Word winPalette = memory.readByte(Mmu::BGP); //. window shares the palette with the bg
+    Word tileMapStart = (getBit(lcdc, 6) == 1) ? 0x9c00 : 0x9800;
+    Word tileDataStart = (getBit(lcdc, 4) == 1) ? 0x8000 : 0x9000;
+    Byte currentTileRow = (currentLine - winY) / 8;
+
+    for (int col = 0; col < GAMEBOY_WIDTH; col++) {
+
+        // Byte currentTileCol = (col >= winX) ? (col - winX) / 8 : 0;
+        Byte currentTileCol = (col - winX) / 8;
+        if (col < winX) continue; // if the current column is less than the window x pos, skip to the next column
+
+        Word tileMapAddress = tileMapStart + (currentTileRow * 32) + currentTileCol; // tile map address from the given row and col, offset by the tile map start
+        Byte tileId = memory.readByte(tileMapAddress);
+        Word tileAddress;
+        if (tileDataStart == 0x8000)
+        {
+            tileAddress = tileDataStart + tileId * 16;
+        }
+        else {
+            tileAddress = tileDataStart + (int8_t)tileId * 16;
+        }
+        Byte tileRow = (currentLine - winY) % 8;
+        Byte lo = memory.readByte(tileAddress + (tileRow * 2));     // low byte of the tile to show
+        Byte hi = memory.readByte(tileAddress + (tileRow * 2) + 1); // high byte of the tile
+
+        Byte bitToShift = (7 - (col - winX) % 8);
+        Byte paletteId = getBit(lo, bitToShift) | (getBit(hi, bitToShift) << 1);
+        Byte colorIndex = winPalette >> (paletteId * 2) & 0b11;
+        SDL_Color c;
+        switch (colorIndex) {
+            case 0: c = palette.getColor(WHITE);        break;
+            case 1: c = palette.getColor(LIGHT_GRAY);   break;
+            case 2: c = palette.getColor(DARK_GRAY);    break;
+            case 3: c = palette.getColor(BLACK);        break;
+        }
+
+        int index = ((currentLine * GAMEBOY_WIDTH) + col) * 3;
+        frameBuffer[index + 0] = c.r; // r
+        frameBuffer[index + 1] = c.g; // g
+        frameBuffer[index + 2] = c.b; // b
+    }
+}
+
+
+void Ppu::loadBgToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc) {
     if (currentLine >= GAMEBOY_HEIGHT) {
         printf("loadScanline out of bounds: %d\n", currentLine);
         return;
     }
 
-    // if (currentLine == 0) {
-    //     printf("LY 0\n");
-    //     printf("palette: %d\n", palette.selectedPalette);
-    // }
-
-    Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
     Byte scrollx = memory.readByte(Mmu::SCX);
     Byte scrolly = memory.readByte(Mmu::SCY);
-    Byte winX = memory.readByte(Mmu::WX);
-    Byte winY = memory.readByte(Mmu::WY);
+    // printf("scrollx=%d, scrolly=%d\n", scrollx, scrolly);
     Word bgPalette = memory.readByte(Mmu::BGP);
     Word tileMapStart = (getBit(lcdc, 3) == 1) ? 0x9c00 : 0x9800;
     Word tileDataStart = (getBit(lcdc, 4) == 1) ? 0x8000 : 0x9000;
@@ -182,7 +226,7 @@ void Ppu::loadBgToFrameBuffer(Mmu &memory, Byte currentLine) {
 
     for (int col = 0; col < GAMEBOY_WIDTH; col++) {
 
-        Byte currentTileCol = ((col + scrollx) / 8) % 32; // gets the location in the window
+        Byte currentTileCol = ((col + scrollx) / 8) % 32; // gets the location in the windows
 
         Word tileMapAddress = tileMapStart + (currentTileRow * 32) + currentTileCol; // tile map address from the given row and col, offset by the tile map start
         Byte tileId = memory.readByte(tileMapAddress);
@@ -207,14 +251,13 @@ void Ppu::loadBgToFrameBuffer(Mmu &memory, Byte currentLine) {
             case 1: c = palette.getColor(LIGHT_GRAY);   break;
             case 2: c = palette.getColor(DARK_GRAY);    break;
             case 3: c = palette.getColor(BLACK);        break;
-            default: c = palette.getColor(WHITE);       break;
         }
 
-        int index = ((currentLine * 160) + col) * 3;
+        int index = ((currentLine * GAMEBOY_WIDTH) + col) * 3;
         frameBuffer[index + 0] = c.r; // r
         frameBuffer[index + 1] = c.g; // g
         frameBuffer[index + 2] = c.b; // b
-    }    
+    }
 }
 
 
@@ -228,7 +271,8 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
     
     LCDStatus(memory);
 
-    bool isLcdEnabled = memory.readByte(Mmu::LCDC) >> 7;
+    Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
+    bool isLcdEnabled = getBit(lcdc, 7);
     if (!isLcdEnabled) {
         return;
     }
@@ -237,18 +281,32 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
 
     if (scanlineCounter <= 0) {
         Byte currentLine = memory.readByte(Mmu::LY);
-        
-        scanlineCounter = 456;
-        
-        if (currentLine == 144) {
+
+        scanlineCounter = 456; // reset scaline counter for the next line
+
+        if (currentLine == 144) { // if end of line, enter vblank
             // set bit 0 of IF to request vblank interrupt
             memory.writeByte(memory.IF, memory.readByte(memory.IF) | 0x01);
         } else if (currentLine > 153) {
             memory.writeByte(Mmu::LY, 0);
         } else if (currentLine < 144) {
             // printf("rendering scanline: %d\n", currentLine);
-            loadBgToFrameBuffer(memory, currentLine);
-            loadOamToFrameBuffer(memory, currentLine);
+            Byte BGandWinEnabled = getBit(lcdc, 0); // if this is false, the background and window are disabled, and the screen is white
+            if (!BGandWinEnabled) {
+                for (int col = 0; col < GAMEBOY_WIDTH; col++) {
+                    int index = ((currentLine * GAMEBOY_WIDTH) + col) * 3;
+                    frameBuffer[index + 0] = 255; // r
+                    frameBuffer[index + 1] = 255; // g
+                    frameBuffer[index + 2] = 255; // b
+                }
+            } else {
+                if (getBit(lcdc, 5) && (currentLine >= memory.readByte(Mmu::WY)) && (memory.readByte(Mmu::WX) - 7 < GAMEBOY_WIDTH)) {
+                    loadWinToFrameBuffer(memory, currentLine, lcdc);
+                } else {
+                    loadBgToFrameBuffer(memory, currentLine, lcdc);
+                }
+            }
+            loadOamToFrameBuffer(memory, currentLine, lcdc);
         }
         memory.writeByte(Mmu::LY, memory.readByte(Mmu::LY) + 1);
     }
@@ -278,7 +336,6 @@ void Ppu::loadTileData(Mmu &memory) {
                     case 1: c = palette.getColor(LIGHT_GRAY);   break;
                     case 2: c = palette.getColor(DARK_GRAY);    break;
                     case 3: c = palette.getColor(BLACK);        break;
-                    default: c = palette.getColor(WHITE);       break;
                 }
                 int px = tileX + col;
                 int py = tileY + row;

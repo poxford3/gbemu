@@ -21,6 +21,13 @@ void Gameboy::start() {
     ppu.reset();
 };
 
+void Gameboy::reset() {
+    cpu.reset();
+    mmu.reset();
+    ppu.reset();
+    checksumPassed = checksum();
+}
+
 
 Gameboy::~Gameboy() {}
 

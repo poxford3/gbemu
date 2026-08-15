@@ -47,8 +47,9 @@ class Ppu {
     private:
         static const Word oamStart = 0xFE00;
         static const Byte oamSize = 0x9F;
-        void loadOamToFrameBuffer(Mmu &memory, Byte currentLine); // load sprites in, can potentially rename
-        void loadBgToFrameBuffer(Mmu &memory, Byte currentLine);
+        void loadOamToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc); // load sprites in, can potentially rename
+        void loadWinToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc);
+        void loadBgToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc);
         void LCDStatus(Mmu &memory);
 };
 
