@@ -57,6 +57,14 @@ class Cpu {
         Word HL; // HL = H << 8 | L
     };
 
+    enum Interrupt {
+        VBLANK = 0,
+        LCD_STAT = 1,
+        TIMER = 2,
+        SERIAL = 3,
+        JOYPAD = 4
+    };
+
     void reset();
     void updateFlags(Byte result, bool isSubtraction, bool halfCarry, bool carry);
     Word incWord(Word value); // increment a 16-bit word, wrapping around at 0xFFFF

@@ -40,35 +40,35 @@ void Ppu::LCDStatus(Mmu &memory) {
     Byte currentLine = memory.readByte(Mmu::LY);
     Byte currentMode = lcdStat & 0x3; // PPU mode (oam, drawing, hblank, etc)
 
-    Byte mode = 0;
+    Byte mode = HBLANK;
     bool intReq = false;
 
     if (currentLine >= 144) {
-        mode = 1;
-        lcdStat = setBit(lcdStat, 0); // set the 0th bit to 1
-        lcdStat = resetBit(lcdStat, 1); // set the 1th bit to 0
-        intReq = getBit(lcdStat, 4); // interrupt request equal to 4th bit of STAT
+        mode = VBLANK;
+        lcdStat = setBit(lcdStat, PPU_MODE_L); // set the 0th bit to 1
+        lcdStat = resetBit(lcdStat, PPU_MODE_H); // set the 1th bit to 0
+        intReq = getBit(lcdStat, LYC_INT); // interrupt request equal to 4th bit of STAT
     } else {
         int mode2bounds = 456-80;
         int mode3bounds = mode2bounds - 172;
 
         // mode 2
         if (scanlineCounter >= mode2bounds) {
-            mode = 2;
-            lcdStat = setBit(lcdStat, 1); // set the 1th bit to 1
-            lcdStat = resetBit(lcdStat, 0); // set the 0th bit to 0
-            intReq = getBit(lcdStat, 5); // interrupt request equal to 5th bit of STAT (Mode 2 select)
+            mode = OAM;
+            lcdStat = setBit(lcdStat, PPU_MODE_L); // set the 0th bit to 1
+            lcdStat = resetBit(lcdStat, PPU_MODE_H); // set the 1th bit to 0
+            intReq = getBit(lcdStat, MODE2_INT); // interrupt request equal to 5th bit of STAT (Mode 2 select)
         } else if (scanlineCounter >= mode3bounds) {
             // mode 3
-            mode = 3;
-            lcdStat = setBit(lcdStat, 0); // set the 0th bit to 1
-            lcdStat = setBit(lcdStat, 1); // set the 1th bit to 1
+            mode = DRAWING;
+            lcdStat = setBit(lcdStat, PPU_MODE_L); // set the 0th bit to 1
+            lcdStat = setBit(lcdStat, PPU_MODE_H); // set the 1th bit to 1
         } else {
             // mode 0
-            mode = 0;
-            lcdStat = resetBit(lcdStat, 0); // set the 0th bit to 0
-            lcdStat = resetBit(lcdStat, 1); // set the 1th bit to 0
-            intReq = getBit(lcdStat, 3); // interrupt request equal to 3th bit of STAT (Mode 2 select)
+            mode = HBLANK;
+            lcdStat = resetBit(lcdStat, PPU_MODE_L); // set the 0th bit to 0
+            lcdStat = resetBit(lcdStat, PPU_MODE_H); // set the 1th bit to 0
+            intReq = getBit(lcdStat, MODE0_INT); // interrupt request equal to 3th bit of STAT (Mode 2 select)
         }
         
         // if new mode, interrupt flag set
@@ -167,8 +167,8 @@ void Ppu::loadWinToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc) {
     Byte winX = memory.readByte(Mmu::WX) - 7; // window x pos is offset by 7, subtracting 7 to get actual pos
     Byte winY = memory.readByte(Mmu::WY);
     Word winPalette = memory.readByte(Mmu::BGP); //. window shares the palette with the bg
-    Word tileMapStart = (getBit(lcdc, 6) == 1) ? 0x9c00 : 0x9800;
-    Word tileDataStart = (getBit(lcdc, 4) == 1) ? 0x8000 : 0x9000;
+    Word tileMapStart = (getBit(lcdc, WIN_TILE_MAP_SELECT) == 1) ? 0x9c00 : 0x9800;
+    Word tileDataStart = (getBit(lcdc, BG_WIN_TILE_DATA_SELECT) == 1) ? 0x8000 : 0x9000;
     Byte currentTileRow = (currentLine - winY) / 8;
 
     for (int col = 0; col < GAMEBOY_WIDTH; col++) {
@@ -220,8 +220,8 @@ void Ppu::loadBgToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc) {
     Byte scrolly = memory.readByte(Mmu::SCY);
     // printf("scrollx=%d, scrolly=%d\n", scrollx, scrolly);
     Word bgPalette = memory.readByte(Mmu::BGP);
-    Word tileMapStart = (getBit(lcdc, 3) == 1) ? 0x9c00 : 0x9800;
-    Word tileDataStart = (getBit(lcdc, 4) == 1) ? 0x8000 : 0x9000;
+    Word tileMapStart = (getBit(lcdc, BG_TILE_MAP_SELECT) == 1) ? 0x9c00 : 0x9800;
+    Word tileDataStart = (getBit(lcdc, BG_WIN_TILE_DATA_SELECT) == 1) ? 0x8000 : 0x9000;
     Byte currentTileRow = ((currentLine + scrolly) / 8) % 32; // wraps back around at the end of the 32x32 block
 
     for (int col = 0; col < GAMEBOY_WIDTH; col++) {
@@ -288,10 +288,10 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
             // set bit 0 of IF to request vblank interrupt
             memory.writeByte(memory.IF, memory.readByte(memory.IF) | 0x01);
         } else if (currentLine > 153) {
-            memory.writeByte(Mmu::LY, 0);
+            memory.writeByte(Mmu::LY, 0); // reset LY to 0 after vblank
         } else if (currentLine < 144) {
             // printf("rendering scanline: %d\n", currentLine);
-            Byte BGandWinEnabled = getBit(lcdc, 0); // if this is false, the background and window are disabled, and the screen is white
+            Byte BGandWinEnabled = getBit(lcdc, BG_WIN_ENABLE); // if this is false, the background and window are disabled, and the screen is white
             if (!BGandWinEnabled) {
                 for (int col = 0; col < GAMEBOY_WIDTH; col++) {
                     int index = ((currentLine * GAMEBOY_WIDTH) + col) * 3;
@@ -300,7 +300,10 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
                     frameBuffer[index + 2] = 255; // b
                 }
             } else {
-                if (getBit(lcdc, 5) && (currentLine >= memory.readByte(Mmu::WY)) && (memory.readByte(Mmu::WX) - 7 < GAMEBOY_WIDTH)) {
+                if (getBit(lcdc, WIN_ENABLE) &&
+                    (currentLine >= memory.readByte(Mmu::WY)) &&
+                    (memory.readByte(Mmu::WX) - 7 < GAMEBOY_WIDTH)) 
+                    {
                     loadWinToFrameBuffer(memory, currentLine, lcdc);
                 } else {
                     loadBgToFrameBuffer(memory, currentLine, lcdc);

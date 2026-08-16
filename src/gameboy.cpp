@@ -135,11 +135,11 @@ void Gameboy::handleInterrupts() {
             cpu.pushRegToStack(cpu.PC, mmu);
 
             switch (i) {
-                case 0: cpu.PC = 0x0040; break; // VBlank
-                case 1: cpu.PC = 0x0048; break; // LCD
-                case 2: cpu.PC = 0x0050; break; // Timer
-                case 3: cpu.PC = 0x0058; break; // Serial
-                case 4: cpu.PC = 0x0060; break; // Joypad
+                case Cpu::VBLANK:    cpu.PC = 0x0040; break; // VBlank
+                case Cpu::LCD_STAT:  cpu.PC = 0x0048; break; // LCD
+                case Cpu::TIMER:     cpu.PC = 0x0050; break; // Timer
+                case Cpu::SERIAL:    cpu.PC = 0x0058; break; // Serial
+                case Cpu::JOYPAD:    cpu.PC = 0x0060; break; // Joypad
             }
             // cycles -= 20; // implemented once the clock is done
             return;

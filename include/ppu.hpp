@@ -47,6 +47,35 @@ class Ppu {
     private:
         static const Word oamStart = 0xFE00;
         static const Byte oamSize = 0x9F;
+
+        enum PpuMode {
+            HBLANK = 0,
+            VBLANK = 1,
+            OAM = 2,
+            DRAWING = 3
+        };
+
+        enum LCDStatus { // bits 3-6 used for interrupts
+            LYC_INT = 6,
+            MODE2_INT = 5,
+            MODE1_INT = 4,
+            MODE0_INT = 3,
+            LYC_FLAG = 2,
+            PPU_MODE_H = 1, // high bit of ppu mode
+            PPU_MODE_L = 0  // low bit of ppu mode
+        };
+
+        enum LCDControl {
+            LCD_PPU_ENABLE = 7,         // 0 = Off; 1 = On
+            WIN_TILE_MAP_SELECT = 6,    // 0 = 9800–9BFF; 1 = 9C00–9FFF
+            WIN_ENABLE = 5,             // 0 = Off; 1 = On
+            BG_WIN_TILE_DATA_SELECT = 4,// 0 = 8800–97FF; 1 = 8000–8FFF
+            BG_TILE_MAP_SELECT = 3,     // 0 = 9800–9BFF; 1 = 9C00–9FFF
+            OBJ_SIZE = 2,               // 0 = 8x8; 1 = 8x16
+            OBJ_ENABLE = 1,             // 0 = Off; 1 = On
+            BG_WIN_ENABLE = 0           // 0 = Off; 1 = On (different for CGB)
+        };
+
         void loadOamToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc); // load sprites in, can potentially rename
         void loadWinToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc);
         void loadBgToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc);
