@@ -86,11 +86,13 @@ class Mmu {
         void reset();
         void loadRom(const std::vector<Byte>& program);
         void writeByte(Word address, Byte value);
-        Byte readByte(Word address);  
+        Byte readByte(Word address);
         int8_t readInt(Word address);
 
-        Byte joyp_buttons = 0xF0;
-        Byte jopy_dpad = 0xF0;
+        // two bytes to be able to track what's being pressed
+        Byte buttons = 0xFF;
+        Byte dpad = 0xFF;
+        Byte handleJoypad();
         
     private:
         // https://gbdev.io/pandocs/The_Cartridge_Header.html#0147--cartridge-type

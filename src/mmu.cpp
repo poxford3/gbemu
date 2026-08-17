@@ -1,5 +1,6 @@
 #include <time.h>
 #include "mmu.hpp"
+#include "gameboy.hpp"
 #include "utils/bit.hpp"
 
 Mmu::Mmu() {
@@ -323,6 +324,22 @@ void Mmu::handleRomWrite(Word address, Byte value) {
 }
 
 
+Byte Mmu::handleJoypad() {
+    Byte joypadValue = ioRegisters[P1 - 0xFF00];
+    Byte output = joypadValue | 0x0F; // start with all buttons unpressed
+
+    if (!getBit(joypadValue, 4)) output &= (dpad    | 0xF0);
+    if (!getBit(joypadValue, 5)) output &= (buttons | 0xF0);
+
+    // set joypad interrupt if any button pressed
+    if (output != 0xFF) {
+        // if any button is pressed, set bit 4 of IF to request joypad interrupt
+        ioRegisters[IF - 0xFF00] = ioRegisters[IF - 0xFF00] | 0x10;
+    }
+    return output;
+}
+
+
 void Mmu::writeByte(Word address, Byte value) {
     if (address == SC) {
         if (value == 0x81) {
@@ -352,17 +369,11 @@ void Mmu::writeByte(Word address, Byte value) {
         workRamBank0[address - 0xC000] = value;
     } else if (address >= 0xD000 && address <= 0xDFFF) {
         workRamBankN[address - 0xD000] = value;
-    } 
-    // else if (address >= 0xFE00 && address <= 0xFE9F) {
-    //     printf("writing OAM at address 0x%04x, value is 0x%02x\n", address, value);
-    //     oam[address - 0xFE00] = value;
-    // } 
-    else if (address == 0xFF46) {
+    } else if (address == 0xFF46) { // DMA transfer
         for (int i = 0; i < 0xA0; i++) {
             oam[i] = readByte((value << 8) + i);
         }
-    }
-    else if (address >= 0xFF80 && address <= 0xFFFE) {
+    } else if (address >= 0xFF80 && address <= 0xFFFE) {
         HRam[address - 0xFF80] = value;
     } else if (address >= 0xFF00 && address <= 0xFF7F) {
         if (address == DIV) {
@@ -381,9 +392,7 @@ void Mmu::writeByte(Word address, Byte value) {
 Byte Mmu::readByte(Word address) {
 
     if (address >= 0xFF00 && address <= 0xFF7F) {
-        if (address == 0xFF00) {
-            // printf("setting joypad\n");
-        }
+        if (address == P1) return handleJoypad();  // return variable, otherwise, return mem value
         return ioRegisters[address - 0xFF00];
     } else if (address == 0xFFFF) {
         return interruptEnableRegister; 
@@ -436,7 +445,16 @@ int8_t Mmu::readInt(Word address) {
         return static_cast<int8_t>(romBankN[address - 0x4000]);
     } else if (address >= 0x8000 && address <= 0x9FFF) {
         return static_cast<int8_t>(VRam[address - 0x8000]);
-    } else if (address >= 0xC000 && address <= 0xCFFF) {
+    } else if (address >= 0xA000 && address <= 0xBFFF) {
+        if (RAMSize > 0) { // todo verify this behavior (only putting out a value if it's enabled)
+            if (MBCType == 3 && currentRamBank >= 0x08 && currentRamBank <= 0x0C) {
+                // reading from RTC registers
+                selectedClockReg = currentRamBank;
+                return static_cast<int8_t>(clockregs[selectedClockReg - 0x08]);
+            }
+            return static_cast<int8_t>(externalRam[address - 0xA000]);
+        } else return 0xFF; // if external ram isn't enabled, often just returning 0xFF
+     } else if (address >= 0xC000 && address <= 0xCFFF) {
         return static_cast<int8_t>(workRamBank0[address - 0xC000]);
     } else if (address >= 0xD000 && address <= 0xDFFF) {
         return static_cast<int8_t>(workRamBankN[address - 0xD000]);

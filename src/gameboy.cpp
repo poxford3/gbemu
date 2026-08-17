@@ -48,6 +48,83 @@ void Gameboy::runFrame() {
 }
 
 
+void Gameboy::joyPadProcessor(Byte input, Byte type, bool keyUp) {
+    std::function<Byte(Byte, Byte)> bitFunc = keyUp 
+    ? static_cast<Byte(*)(Byte, Byte)>(setBit) // if keyUp, set the bit to 1 to mark it as inactive
+    : static_cast<Byte(*)(Byte, Byte)>(resetBit);
+
+    if (type == BUTTON_SELECT) {
+        mmu.buttons = bitFunc(mmu.buttons, input);
+    } else if (type == DPAD_SELECT) {
+        mmu.dpad = bitFunc(mmu.dpad, input);
+    }
+}
+
+
+void Gameboy::handleInput(SDL_Event &event) {
+    if (event.type == SDL_KEYDOWN) {
+        switch (event.key.keysym.scancode) { // reset bit to mark it as active
+            case SDL_SCANCODE_UP:
+                joyPadProcessor(SELECT_UP, DPAD_SELECT, false); // set bit 2 to 0 for up and bit 4 to 1 for dpad
+                break;
+            case SDL_SCANCODE_DOWN:
+                joyPadProcessor(START_DOWN, DPAD_SELECT, false); // set bit 3 to 0 for down and bit 4 to 1 for dpad
+                break;
+            case SDL_SCANCODE_LEFT:
+                joyPadProcessor(B_LEFT, DPAD_SELECT, false); // set bit 1 to 0 for left and bit 4 to 1 for dpad
+                break;
+            case SDL_SCANCODE_RIGHT:
+                joyPadProcessor(A_RIGHT, DPAD_SELECT, false); // set bit 0 to 0 for right and bit 4 to 1 for dpad
+                break;
+            case SDL_SCANCODE_Z: // A
+                joyPadProcessor(A_RIGHT, BUTTON_SELECT, false); // set bit 0 to 0 for select and bit 5 to 0 for buttons
+                break;
+            case SDL_SCANCODE_X: // B
+                joyPadProcessor(B_LEFT, BUTTON_SELECT, false); // set bit 1 to 0 for select and bit 5 to 0 for buttons
+                break;
+            case SDL_SCANCODE_RETURN: // Start
+                joyPadProcessor(START_DOWN, BUTTON_SELECT, false); // set bit 3 to 0 for select and bit 5 to 0 for buttons
+                break;
+            case SDL_SCANCODE_RSHIFT: // Select
+                joyPadProcessor(SELECT_UP, BUTTON_SELECT, false); // set bit 2 to 0 for select and bit 5 to 0 for buttons
+                break;
+            default:
+                break;
+        }
+    }
+        if (event.type == SDL_KEYUP) { // up means off
+        switch (event.key.keysym.scancode) {
+            case SDL_SCANCODE_UP:
+                joyPadProcessor(SELECT_UP, DPAD_SELECT, true); // set bit 2 to 1 for up and bit 4 to 1 for dpad
+                break;
+            case SDL_SCANCODE_DOWN:
+                joyPadProcessor(START_DOWN, DPAD_SELECT, true); // set bit 3 to 1 for down and bit 4 to 1 for dpad
+                break;
+            case SDL_SCANCODE_LEFT:
+                joyPadProcessor(B_LEFT, DPAD_SELECT, true); // set bit 1 to 1 for left and bit 4 to 1 for dpad
+                break;
+            case SDL_SCANCODE_RIGHT:
+                joyPadProcessor(A_RIGHT, DPAD_SELECT, true); // set bit 0 to 1 for right and bit 4 to 1 for dpad
+                break;
+            case SDL_SCANCODE_Z: // A
+                joyPadProcessor(A_RIGHT, BUTTON_SELECT, true); // set bit 0 to 1 for A and bit 5 to 1 for buttons
+                break;
+            case SDL_SCANCODE_X: // B
+                joyPadProcessor(B_LEFT, BUTTON_SELECT, true); // set bit 1 to 1 for B and bit 5 to 1 for buttons
+                break;
+            case SDL_SCANCODE_RETURN: // Start
+                joyPadProcessor(START_DOWN, BUTTON_SELECT, true); // set bit 3 to 1 for start and bit 5 to 1 for buttons
+                break;
+            case SDL_SCANCODE_RSHIFT: // Select
+                joyPadProcessor(SELECT_UP, BUTTON_SELECT, true); // set bit 2 to 1 for select and bit 5 to 1 for buttons
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+
 uint Gameboy::tickCpu() {
 
     if (!cpu.paused) {

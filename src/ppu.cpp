@@ -47,9 +47,9 @@ void Ppu::LCDStatus(Mmu &memory) {
         mode = VBLANK;
         lcdStat = setBit(lcdStat, PPU_MODE_L); // set the 0th bit to 1
         lcdStat = resetBit(lcdStat, PPU_MODE_H); // set the 1th bit to 0
-        intReq = getBit(lcdStat, LYC_INT); // interrupt request equal to 4th bit of STAT
+        intReq = getBit(lcdStat, MODE1_INT); // interrupt request equal to 4th bit of STAT
     } else {
-        int mode2bounds = 456-80;
+        int mode2bounds = 456-80; // mode 2 is 80 cycles long, mode 3 is 172 cycles long, and mode 0 is 204 cycles long
         int mode3bounds = mode2bounds - 172;
 
         // mode 2

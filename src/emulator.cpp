@@ -222,39 +222,10 @@ void Emulator::handleInput(SDL_Event &event) {
             paused = !paused;
         }
     }
-    // else if (event.key.keysym.scancode == SDL_SCANCODE_A) { // B button // needs lots of work
-    //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
-    //     joyp = resetBit(joyp, 1); // setting to 0 since it's active high (1 is B)
-    //     joyp = setBit(joyp, 4); // turn off dpad
-    //     joyp = resetBit(joyp, 5); // setting the "button select" option
-    //     gameboy->mmu.writeByte(Mmu::P1, joyp);
-    //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
-    //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
-    //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
-    // }
-    // else if (event.key.keysym.scancode == SDL_SCANCODE_X) { // A button
-    //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
-    //     joyp = resetBit(joyp, 0); // setting to 0 since it's active high (1 is B)
-    //     joyp = setBit(joyp, 4); // turn off dpad
-    //     joyp = resetBit(joyp, 5); // setting the "button select" option
-    //     gameboy->mmu.writeByte(Mmu::P1, joyp);
-    //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
-    //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
-    //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
-    // }
-    // else if (event.key.keysym.scancode == SDL_SCANCODE_RETURN) { // Start
-    //     Byte joyp = gameboy->mmu.readByte(Mmu::P1);
-    //     joyp = resetBit(joyp, 3); // setting to 0 since it's active high (1 is B)
-    //     joyp = setBit(joyp, 4); // turn off dpad
-    //     joyp = resetBit(joyp, 5); // setting the "button select" option
-    //     gameboy->mmu.writeByte(Mmu::P1, joyp);
-    //     Byte IFreg = gameboy->mmu.readByte(Mmu::IF);
-    //     IFreg = setBit(IFreg, 4); // set the 4th bit to 1 (joypad bit)
-    //     gameboy->mmu.writeByte(Mmu::IF, IFreg);
-    // }
-    // else if (event.key.keysym.scancode == SDL_SCANCODE_RSHIFT) {} // Select
-    // else if (event.key.keysym.scancode == SDL_SCANCODE_A) {}
-    // else if (event.key.keysym.scancode == SDL_SCANCODE_A) {}
+
+    if (gameboy.has_value()) {
+        gameboy->handleInput(event);
+    }
 }
 
 
