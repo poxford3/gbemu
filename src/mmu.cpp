@@ -19,7 +19,7 @@ void Mmu::loadRom(const std::vector<Byte>& program) {
     uint numBytes = program.size();
 
     for (uint i = 0; i < numBytes && i < 0x8000; i++) {
-        if (i < 0x4000) {
+        if (i < 0x4000) { // rom split in 2 32kb sections, 0x4000 is 32kb
             romBank0[i] = program[i];
         } else {
             romBankN[i - 0x4000] = program[i];
@@ -327,9 +327,9 @@ void Mmu::handleRomWrite(Word address, Byte value) {
 Byte Mmu::handleJoypad() {
     Byte joypadValue = ioRegisters[P1 - 0xFF00];
     Byte output = joypadValue | 0x0F; // start with all buttons unpressed
-
-    if (!getBit(joypadValue, 4)) output &= (dpad    | 0xF0);
-    if (!getBit(joypadValue, 5)) output &= (buttons | 0xF0);
+ 
+    if (!getBit(joypadValue, Gameboy::DPAD_SELECT))   output &= (dpad    | 0xF0);
+    if (!getBit(joypadValue, Gameboy::BUTTON_SELECT)) output &= (buttons | 0xF0);
 
     // set joypad interrupt if any button pressed
     if (output != 0xFF) {
@@ -392,7 +392,8 @@ void Mmu::writeByte(Word address, Byte value) {
 Byte Mmu::readByte(Word address) {
 
     if (address >= 0xFF00 && address <= 0xFF7F) {
-        if (address == P1) return handleJoypad();  // return variable, otherwise, return mem value
+        // return variable for joyp/p1, otherwise, return mem value
+        if (address == P1) return handleJoypad();
         return ioRegisters[address - 0xFF00];
     } else if (address == 0xFFFF) {
         return interruptEnableRegister; 

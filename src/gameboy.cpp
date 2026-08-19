@@ -35,7 +35,7 @@ Gameboy::~Gameboy() {}
 void Gameboy::runFrame() {
     if (checksumPassed) {
         uint frameCycles = 0;
-        while (frameCycles <= 70224) { // 70224 cycles per frame
+        while (frameCycles <= CYCLES_PER_FRAME) { // 70224 cycles per frame
             uint cycles = tickCpu();
             updateTimer(cycles);
             updateGraphics(cycles);

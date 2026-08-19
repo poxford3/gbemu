@@ -12,6 +12,7 @@ class Gameboy {
         bool checksumPassed = false;
         int divCycles = 0;   // counts cycles until DIV increments (every 256 cycles)
         int timaCycles = 0;  // counts cycles until TIMA increments (based on TAC speed)
+        uint CYCLES_PER_FRAME = 70224; // 70224 cycles per frame, based on 59.73 FPS and 4.19 MHz clock speed
 
         Gameboy();
         Gameboy(const std::vector<Byte>& program);
@@ -37,13 +38,13 @@ class Gameboy {
         
     private:
         uint tickCpu();
+        bool checksum();
         void updateGraphics(uint cycles);
         void updateTimer(uint cycles);
         void handleInterrupts();
 
         void joyPadProcessor(Byte input, Byte type, bool keyUp); 
 
-        bool checksum();
         void testWithJson(std::string path);
 };
 
