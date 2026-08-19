@@ -110,6 +110,8 @@ void Emulator::createGameboyTextures() {
 void Emulator::run() {
     while (running) {
 
+        uint frameStart = SDL_GetTicks();
+
         // imgui menu section
         ImGui_ImplSDLRenderer2_NewFrame();
         ImGui_ImplSDL2_NewFrame();
@@ -170,7 +172,11 @@ void Emulator::run() {
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
 
         SDL_RenderPresent(renderer);
-        SDL_Delay(16); // 16 ms = 60 fps
+        uint frameTime = SDL_GetTicks() - frameStart;
+        if (frameTime < FRAME_DELAY) {
+            SDL_Delay(FRAME_DELAY - frameTime);
+        }
+        // SDL_Delay(16); // 16 ms = 60 fps
     }
 }
 

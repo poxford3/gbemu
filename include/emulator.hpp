@@ -21,7 +21,7 @@ class Emulator {
         void run();
         const char* emulatorTitle = "gbemu";
         FileHandler getFileFromUser();
-    private:
+        private:
         bool running;
         bool paused;
         bool showDebugMenu;
@@ -29,6 +29,8 @@ class Emulator {
         bool doShowRamContents;
         int emulatorScreenWidth = 300;
         int emulatorScreenHeight = 150;
+        const int TARGET_FPS = 60;
+        const int FRAME_DELAY = 1000 / TARGET_FPS;
         SDL_Window* window;
         SDL_Renderer* renderer;
         SDL_Texture* gbTexture;
