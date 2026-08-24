@@ -37,10 +37,8 @@ class Ppu {
 
         
         // 3 bytes per pixel for background
-        static const uint bgFrameBufferSize = GAMEBOY_HEIGHT * GAMEBOY_WIDTH * 3;
-        std::array<Byte, bgFrameBufferSize> frameBuffer;
-        // 4 bytes per pixel for sprites (transparency being the 4th)
-        std::array<Byte, GAMEBOY_HEIGHT * GAMEBOY_WIDTH * 4> frameBufferObj;
+        static const uint frameBufferSize = GAMEBOY_HEIGHT * GAMEBOY_WIDTH * 3;
+        std::array<Byte, frameBufferSize> frameBuffer;
         std::array<Byte, TILEDATA_HEIGHT * TILEDATA_WIDTH * 3> tileData;
         void updateGraphics(Mmu &memory, uint cycles);
         void loadTileData(Mmu &memory);

@@ -176,7 +176,6 @@ void Emulator::run() {
         if (frameTime < FRAME_DELAY) {
             SDL_Delay(FRAME_DELAY - frameTime);
         }
-        // SDL_Delay(16); // 16 ms = 60 fps
     }
 }
 

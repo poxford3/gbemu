@@ -127,7 +127,7 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc) {
             Byte lo = memory.readByte(tileAddress);
             Byte hi = memory.readByte(tileAddress + 1);
             for (int col = 7; col >= 0; --col) {
-                if (xPos < 0 || yPos < 0) continue;
+                if (xPos < 0 || yPos < 0 || xPos >= GAMEBOY_WIDTH) continue;
                 int colUsed = col;
                 if (xFlip) {
                     colUsed -= 7;
@@ -139,17 +139,17 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc) {
                 Byte colorIndex = objPalette >> (paletteId * 2) & 0b11;
                 SDL_Color c;
                 switch (colorIndex) {
-                    case 0: break;
+                    case 0: c = palette.getColor(WHITE);        break;
                     case 1: c = palette.getColor(LIGHT_GRAY);   break;
                     case 2: c = palette.getColor(DARK_GRAY);    break;
                     case 3: c = palette.getColor(BLACK);        break;
                 }
 
                 if (paletteId > 0) { // if the color is not transparent, draw it
-                    int index = ((currentLine * GAMEBOY_WIDTH) + xPos + colUsed) * 3;
+                    int index = ((currentLine * GAMEBOY_WIDTH) + xPos + col) * 3;
                     if (priority && frameBuffer[index] > 0) continue;
 
-                    frameBuffer[index] = c.r;
+                    frameBuffer[index + 0] = c.r;
                     frameBuffer[index + 1] = c.g;
                     frameBuffer[index + 2] = c.b;
                 }
