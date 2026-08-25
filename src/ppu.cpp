@@ -28,11 +28,11 @@ void Ppu::LCDStatus(Mmu &memory) {
     // http://www.codeslinger.co.uk/pages/projects/gameboy/lcd.html
     Byte lcdStat = memory.readByte(Mmu::STAT);
     Byte lcdc = memory.readByte(Mmu::LCDC);
-    if (!(getBit(lcdc, 7))) { // if the 7th bit of LCDC (LCD Enable) if false
+    if (!(getBit(lcdc, LCD_PPU_ENABLE))) { // if the 7th bit of LCDC (LCD Enable) if false
         scanlineCounter = 456;
         memory.writeByte(Mmu::LY, 0);
         lcdStat &= 0xFC; // 0 out the bottom 2 bits
-        setBit(lcdStat, 0);
+        setBit(lcdStat, PPU_MODE_L);
         memory.writeByte(Mmu::STAT, lcdStat);
         return;
     }
@@ -164,8 +164,8 @@ void Ppu::loadWinToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc) {
         printf("loadScanline out of bounds: %d\n", currentLine);
         return;
     }
-    Byte winX = memory.readByte(Mmu::WX) - 7; // window x pos is offset by 7, subtracting 7 to get actual pos
-    Byte winY = memory.readByte(Mmu::WY);
+    int winX = memory.readByte(Mmu::WX) - 7; // window x pos is offset by 7, subtracting 7 to get actual pos
+    int winY = memory.readByte(Mmu::WY);
     Word winPalette = memory.readByte(Mmu::BGP); //. window shares the palette with the bg
     Word tileMapStart = (getBit(lcdc, WIN_TILE_MAP_SELECT) == 1) ? 0x9c00 : 0x9800;
     Word tileDataStart = (getBit(lcdc, BG_WIN_TILE_DATA_SELECT) == 1) ? 0x8000 : 0x9000;
@@ -173,9 +173,9 @@ void Ppu::loadWinToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc) {
 
     for (int col = 0; col < GAMEBOY_WIDTH; col++) {
 
-        // Byte currentTileCol = (col >= winX) ? (col - winX) / 8 : 0;
-        Byte currentTileCol = (col - winX) / 8;
         if (col < winX) continue; // if the current column is less than the window x pos, skip to the next column
+        if (currentLine < winY) continue; // if the current line is less than the window y pos, skip to the next column
+        Byte currentTileCol = (col - winX) / 8;
 
         Word tileMapAddress = tileMapStart + (currentTileRow * 32) + currentTileCol; // tile map address from the given row and col, offset by the tile map start
         Byte tileId = memory.readByte(tileMapAddress);
@@ -262,12 +262,6 @@ void Ppu::loadBgToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc) {
 
 
 void Ppu::updateGraphics(Mmu &memory, uint cycles) {
-    // static uint64_t callCount = 0;
-    // callCount++;
-    // if (callCount % 100000 == 0) {
-    //     printf("updateGraphics called %llu times, scanlineCounter=%d LY=%d\n", 
-    //         callCount, scanlineCounter, memory.readByte(Mmu::LY));
-    // }
     
     LCDStatus(memory);
 
