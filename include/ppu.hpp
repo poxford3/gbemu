@@ -28,7 +28,6 @@ class Ppu {
         uint EMULATOR_SCREEN_HEIGHT() const { return GAMEBOY_HEIGHT * winScale; };
         uint EMULATOR_TILEDATA_WIDTH() const { return TILEDATA_WIDTH * winScale; };
         uint EMULATOR_TILEDATA_HEIGHT() const { return TILEDATA_HEIGHT * winScale; };
-        bool DEBUG = true; // used to change between view with(out) registers and memory
         static const uint GAMEBOY_HEIGHT = 144;
         static const uint GAMEBOY_WIDTH = 160;
         static const uint MEMORY_SECTION_WIDTH = 400;
@@ -74,9 +73,12 @@ class Ppu {
             BG_WIN_ENABLE = 0           // 0 = Off; 1 = On (different for CGB)
         };
 
-        void loadOamToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc); // load sprites in, can potentially rename
-        void loadWinToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc);
-        void loadBgToFrameBuffer(Mmu &memory, Byte currentLine, Byte lcdc);
+        bool winYcondition; // used to check if window can be rendered
+        int windowLineCounter; // tracks how many lines of the window have been rendered
+        void loadOamToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc); // load sprites in, can potentially rename
+        void loadWinToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc);
+        void loadBgToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc);
+        void renderScanline(Mmu &memory, Byte &currentLine, Byte &lcdc);
         void LCDStatus(Mmu &memory);
 };
 

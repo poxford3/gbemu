@@ -369,7 +369,7 @@ void Mmu::writeByte(Word address, Byte value) {
         workRamBank0[address - 0xC000] = value;
     } else if (address >= 0xD000 && address <= 0xDFFF) {
         workRamBankN[address - 0xD000] = value;
-    } else if (address == 0xFF46) { // DMA transfer
+    } else if (address == DMA) { // DMA transfer
         for (int i = 0; i < 0xA0; i++) {
             oam[i] = readByte((value << 8) + i);
         }
