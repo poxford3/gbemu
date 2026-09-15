@@ -30,7 +30,7 @@ void Ppu::LCDStatus(Mmu &memory) {
         memory.writeByte(Mmu::LY, 0);
         lcdStat &= 0xFC; // 0 out the bottom 2 bits
         // lcdStat = setBit(lcdStat, PPU_MODE_L); // set it to be VBlank
-        lcdStat |= VBLANK; // set the PPU Mode to VBlank (bottom 2 bits)
+        lcdStat |= HBLANK; // set the PPU Mode to HBlank (bottom 2 bits)
         // memory.writeByte(Mmu::STAT, lcdStat);
         memory.ioRegisters[Mmu::STAT - 0xFF00] = lcdStat;
         return;
@@ -170,7 +170,7 @@ void Ppu::loadWinToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
     Word tileDataStart = (getBit(lcdc, BG_WIN_TILE_DATA_SELECT) == 1) ? 0x8000 : 0x9000;
 
     for (int col = 0; col < GAMEBOY_WIDTH; col++) {
-        
+
         if (col < winX) continue; // if the current column is less than the window x pos, skip to the next column
         if (currentLine < winY) continue; // if the current line is less than the window y pos, skip to the next column
         Byte currentTileRow = (currentLine - winY) / 8;
@@ -269,23 +269,23 @@ void Ppu::renderScanline(Mmu &memory, Byte &currentLine, Byte &lcdc) {
         std::fill(frameBuffer.begin(), frameBuffer.begin() + frameBufferSize, 255); // make the whole bg & window white
     } else {
         loadBgToFrameBuffer(memory, currentLine, lcdc);
-        // if (
-        //     winYcondition &&
-        //     getBit(lcdc, WIN_ENABLE) &&
-        //     static_cast<int>(memory.readByte(Mmu::WX) - 7) < GAMEBOY_WIDTH
-        // ) {
-        //     loadWinToFrameBuffer(memory, currentLine, lcdc);
-        // }
+        if (
+            winYcondition &&
+            getBit(lcdc, WIN_ENABLE) &&
+            static_cast<int>(memory.readByte(Mmu::WX) - 7) < GAMEBOY_WIDTH
+        ) {
+            loadWinToFrameBuffer(memory, currentLine, lcdc);
+        }
     }
 
-    // loadOamToFrameBuffer(memory, currentLine, lcdc);
+    loadOamToFrameBuffer(memory, currentLine, lcdc);
 }
 
 
 void Ppu::updateGraphics(Mmu &memory, uint cycles) {
-    
-    scanlineCounter -= cycles;
+
     LCDStatus(memory);
+    scanlineCounter -= cycles;
 
     Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
     bool isLcdEnabled = getBit(lcdc, LCD_PPU_ENABLE);
@@ -301,13 +301,12 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
 
         if (currentLine == 144) { // if end of line, enter vblank
             winYcondition = false; // window Y condition set to false every VBLank
+            windowLineCounter = 0; // resets at the beginning of each VBlank
             // set bit 0 of IF to request vblank interrupt
             memory.writeByte(memory.IF, memory.readByte(memory.IF) | 0x01);
         } else if (currentLine > 153) {
-            // memory.writeByte(Mmu::LY, 0); // reset LY to 0 after vblank
             currentLine = 0;
         } else if (currentLine < 144) {
-            windowLineCounter = 0; // resets at the beginning of each scanline
             renderScanline(memory, currentLine, lcdc);
         }
         memory.writeByte(Mmu::LY, currentLine);
