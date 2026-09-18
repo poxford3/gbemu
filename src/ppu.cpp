@@ -42,7 +42,7 @@ void Ppu::LCDStatus(Mmu &memory) {
     Byte mode = HBLANK;
     bool intReq = false;
 
-    if (currentLine >= 144) {
+    if (currentLine >= GAMEBOY_HEIGHT) {
         mode = VBLANK;
         lcdStat = (lcdStat & 0xFC) | mode;
         intReq = getBit(lcdStat, MODE1_INT); // interrupt request equal to 4th bit of STAT
@@ -118,14 +118,19 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
 
             int rowUsed = currentLine - yPos;
             if (yFlip) {
-                rowUsed -= ySize;
+                rowUsed -= (ySize - 1);
                 rowUsed *= -1;
             }
             Word tileAddress = 0x8000 + (tileId * 16) + (rowUsed * 2); // sprites always read starting from 0x8000
             Byte lo = memory.readByte(tileAddress);
             Byte hi = memory.readByte(tileAddress + 1);
             for (int col = 7; col >= 0; --col) {
-                if (xPos < 0 || yPos < 0 || xPos >= GAMEBOY_WIDTH) continue;
+                if (xPos < 0 || yPos < 0 ||
+                    xPos >= GAMEBOY_WIDTH ||
+                    yPos >= GAMEBOY_HEIGHT ||
+                    xPos + col >= GAMEBOY_WIDTH ||
+                    yPos + rowUsed >= GAMEBOY_HEIGHT
+                ) continue;
                 int colUsed = col;
                 if (xFlip) {
                     colUsed -= 7;
@@ -145,7 +150,7 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
 
                 if (paletteId > 0) { // if the color is not transparent, draw it
                     int index = ((currentLine * GAMEBOY_WIDTH) + xPos + col) * 3;
-                    if (priority && frameBuffer[index] > 0) continue;
+                    // if (priority && frameBuffer[index] > 0) continue;
 
                     frameBuffer[index + 0] = c.r;
                     frameBuffer[index + 1] = c.g;
@@ -173,7 +178,7 @@ void Ppu::loadWinToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
 
         if (col < winX) continue; // if the current column is less than the window x pos, skip to the next column
         if (currentLine < winY) continue; // if the current line is less than the window y pos, skip to the next column
-        Byte currentTileRow = (currentLine - winY) / 8;
+        Byte currentTileRow = (windowLineCounter - 1) / 8; // windowLineCounter is incremented every time a window pixel is rendered, so subtracting 1 to get the correct row
         Byte currentTileCol = (col - winX) / 8;
 
         Word tileMapAddress = tileMapStart + (currentTileRow * 32) + currentTileCol; // tile map address from the given row and col, offset by the tile map start
@@ -262,11 +267,12 @@ void Ppu::loadBgToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
 
 void Ppu::renderScanline(Mmu &memory, Byte &currentLine, Byte &lcdc) {
     // printf("rendering scanline: %d\n", currentLine);
-    winYcondition = memory.readByte(Mmu::WY) == memory.readByte(Mmu::LY); // check if WY = LY
+    if (memory.readByte(Mmu::WY) == currentLine && !winYcondition) winYcondition = true; // stays latched if it's been set. only will be set to false at the beginning of VBlank
 
     Byte BGandWinEnabled = getBit(lcdc, BG_WIN_ENABLE); // if this is false, the background and window are disabled, and the bg&window are white
     if (!BGandWinEnabled) {
-        std::fill(frameBuffer.begin(), frameBuffer.begin() + frameBufferSize, 255); // make the whole bg & window white
+        // std::fill(frameBuffer.begin(), frameBuffer.begin() + frameBufferSize, 255); // make the whole bg & window white
+        std::fill(frameBuffer.begin() + (currentLine * GAMEBOY_WIDTH * 3), frameBuffer.begin() + ((currentLine + 1) * GAMEBOY_WIDTH * 3), 255); // make the current line white
     } else {
         loadBgToFrameBuffer(memory, currentLine, lcdc);
         if (
@@ -284,8 +290,8 @@ void Ppu::renderScanline(Mmu &memory, Byte &currentLine, Byte &lcdc) {
 
 void Ppu::updateGraphics(Mmu &memory, uint cycles) {
 
-    LCDStatus(memory);
     scanlineCounter -= cycles;
+    LCDStatus(memory);
 
     Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
     bool isLcdEnabled = getBit(lcdc, LCD_PPU_ENABLE);
@@ -299,11 +305,11 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
 
         scanlineCounter += 456; // reset scaline counter for the next line
 
-        if (currentLine == 144) { // if end of line, enter vblank
+        if (currentLine == GAMEBOY_HEIGHT) { // if end of line, enter vblank
             winYcondition = false; // window Y condition set to false every VBLank
             windowLineCounter = 0; // resets at the beginning of each VBlank
             // set bit 0 of IF to request vblank interrupt
-            memory.writeByte(memory.IF, memory.readByte(memory.IF) | 0x01);
+            memory.writeByte(Mmu::IF, memory.readByte(Mmu::IF) | 0x01);
         } else if (currentLine > 153) {
             currentLine = 0;
         } else if (currentLine < 144) {
