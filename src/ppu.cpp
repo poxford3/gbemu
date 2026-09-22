@@ -29,9 +29,7 @@ void Ppu::LCDStatus(Mmu &memory) {
         scanlineCounter = 456;
         memory.writeByte(Mmu::LY, 0);
         lcdStat &= 0xFC; // 0 out the bottom 2 bits
-        // lcdStat = setBit(lcdStat, PPU_MODE_L); // set it to be VBlank
         lcdStat |= HBLANK; // set the PPU Mode to HBlank (bottom 2 bits)
-        // memory.writeByte(Mmu::STAT, lcdStat);
         memory.ioRegisters[Mmu::STAT - 0xFF00] = lcdStat;
         return;
     }
@@ -67,26 +65,56 @@ void Ppu::LCDStatus(Mmu &memory) {
         }
     
 
-        Byte currLY = memory.readByte(Mmu::LY);
+        // Byte currLY = memory.readByte(Mmu::LY);
+        // Byte currLYC = memory.readByte(Mmu::LYC);
+        // if (currLY == currLYC) {
+            //     lcdStat = setBit(lcdStat, LYC_FLAG); // set the 2th bit to 1
+            //     if (getBit(lcdStat, LYC_INT)) { // check 6th bit of STAT
+            //         Byte IFreg = memory.readByte(Mmu::IF);
+            //         IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
+            //         memory.writeByte(Mmu::IF, IFreg);
+            //     }
+            // } else {
+                //         lcdStat = resetBit(lcdStat, LYC_FLAG);  // set the 2th bit to 0
+                // }
         Byte currLYC = memory.readByte(Mmu::LYC);
-        if (currLY == currLYC) {
-            lcdStat = setBit(lcdStat, LYC_FLAG); // set the 2th bit to 1
-            if (getBit(lcdStat, LYC_INT)) { // check 6th bit of STAT
-                Byte IFreg = memory.readByte(Mmu::IF);
-                IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
-                memory.writeByte(Mmu::IF, IFreg);
-            }
+        bool oldCoincidence = getBit(lcdStat, LYC_FLAG);
+        bool newCoincidence = (currentLine == currLYC);
+        
+        if (newCoincidence) {
+            lcdStat = setBit(lcdStat, LYC_FLAG);
         } else {
-                lcdStat = resetBit(lcdStat, LYC_FLAG);  // set the 2th bit to 0
+            lcdStat = resetBit(lcdStat, LYC_FLAG);
         }
+        
+        if (!oldCoincidence && newCoincidence && getBit(lcdStat, LYC_INT)) {
+            Byte IFreg = memory.readByte(Mmu::IF);
+            IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
+            memory.writeByte(Mmu::IF, IFreg);
+            // requestStatInterrupt(memory);
+        }
+
         // memory.writeByte(Mmu::STAT, lcdStat); // don't request it, do it directly
     }
 
     // if new mode, interrupt flag set
-    if (intReq && (mode != currentMode)) {
-        Byte IFreg = memory.readByte(Mmu::IF);
-        IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1 (LCD bit)
-        memory.writeByte(Mmu::IF, IFreg);
+    // if (intReq && (mode != currentMode)) {
+    //     Byte IFreg = memory.readByte(Mmu::IF);
+    //     IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1 (LCD bit)
+    //     memory.writeByte(Mmu::IF, IFreg);
+    // }
+
+    bool modeChanged = mode != currentMode;
+
+    if (modeChanged) {
+        if ((mode == HBLANK && getBit(lcdStat, MODE0_INT)) ||
+            (mode == VBLANK && getBit(lcdStat, MODE1_INT)) ||
+            (mode == OAM    && getBit(lcdStat, MODE2_INT))) {
+            Byte IFreg = memory.readByte(Mmu::IF);
+            IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
+            memory.writeByte(Mmu::IF, IFreg);
+            // requestStatInterrupt(memory);
+        }
     }
 
     memory.ioRegisters[Mmu::STAT - 0xFF00] = lcdStat;
@@ -94,6 +122,9 @@ void Ppu::LCDStatus(Mmu &memory) {
 
 
 void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
+
+    Byte oamCounter = 0;
+
     // https://gbdev.io/pandocs/OAM.html
     for (int i = 0; i < oamSize; i+=4) {
 
@@ -125,19 +156,24 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
             Byte lo = memory.readByte(tileAddress);
             Byte hi = memory.readByte(tileAddress + 1);
             for (int col = 7; col >= 0; --col) {
-                if (xPos < 0 || yPos < 0 ||
+                if (yPos < 0 ||
                     xPos >= GAMEBOY_WIDTH ||
                     yPos >= GAMEBOY_HEIGHT ||
-                    xPos + col >= GAMEBOY_WIDTH ||
-                    yPos + rowUsed >= GAMEBOY_HEIGHT
+                    xPos + col >= GAMEBOY_WIDTH
                 ) continue;
                 int colUsed = col;
-                if (xFlip) {
-                    colUsed -= 7;
-                    colUsed *= -1;
-                }
+                // if (xFlip) {
+                //     colUsed -= 7;
+                //     colUsed *= -1;
+                // }
 
-                Byte paletteId = getBit(lo, 7 - colUsed) | (getBit(hi, 7 - colUsed) << 1);
+                int tileX = xFlip ? 7 - col : col;
+
+                oamCounter++;
+                if (oamCounter > 10) return;
+
+                // Byte paletteId = getBit(lo, 7 - colUsed) | (getBit(hi, 7 - colUsed) << 1);
+                Byte paletteId = getBit(lo, 7 - tileX) | (getBit(hi, 7 - tileX) << 1);
 
                 Byte colorIndex = objPalette >> (paletteId * 2) & 0b11;
                 SDL_Color c;
