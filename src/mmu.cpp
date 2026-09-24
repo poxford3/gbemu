@@ -369,6 +369,8 @@ void Mmu::writeByte(Word address, Byte value) {
         workRamBank0[address - 0xC000] = value;
     } else if (address >= 0xD000 && address <= 0xDFFF) {
         workRamBankN[address - 0xD000] = value;
+    } else if (address >= 0xFE00 && address <= 0xFE9F) {
+        oam[address - 0xFE00] = value;
     } else if (address == DMA) { // DMA transfer
         for (int i = 0; i < 0xA0; i++) {
             oam[i] = readByte((value << 8) + i);
@@ -417,9 +419,9 @@ Byte Mmu::readByte(Word address) {
     } else if (address >= 0xD000 && address <= 0xDFFF) {
         return workRamBankN[address - 0xD000];
     } else if (address >= 0xE000 && address <= 0xEFFF) {
-        return workRamBank0[address - 0xE000]; // echo, shouldn't be used but mirrors work RAM bank 0
-    }else if (address >= 0xD000 && address <= 0xDDFF) {
-        return workRamBankN[address - 0xD000];
+        return workRamBank0[address - 0xE000]; // echo ram, just mirrors work ram (first half)
+    } else if (address >= 0xF000 && address <= 0xFDFF) {
+        return workRamBankN[address - 0xF000]; // echo ram, just mirrors work ram (second half)
     } else if (address >= 0xFE00 && address <= 0xFE9F) {
         // printf("reading from OAM at address 0x%04x, value is 0x%02x\n", address, oam[address - 0xFE00]);
         return oam[address - 0xFE00];

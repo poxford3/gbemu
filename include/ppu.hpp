@@ -14,11 +14,11 @@
 class Ppu {
     public:
         Palette palette;
-        
+
         // bool running;
         bool paused = false; // used to pause the emulator when debugging
         int scanlineCounter;
-        
+
         Ppu();
         ~Ppu();
         void reset();
@@ -34,7 +34,7 @@ class Ppu {
         static const uint TILEDATA_HEIGHT = 192;
         static const uint TILEDATA_WIDTH = 128;
 
-        
+
         // 3 bytes per pixel for background
         static const uint frameBufferSize = GAMEBOY_HEIGHT * GAMEBOY_WIDTH * 3;
         std::array<Byte, frameBufferSize> frameBuffer;
@@ -44,6 +44,12 @@ class Ppu {
     private:
         static const Word oamStart = 0xFE00;
         static const Byte oamSize = 0x9F;
+
+        // PPU mode lengths
+        static const Word MODE3LEN = 172;
+        static const Word MODE2LEN = 80;
+        static const Word MODE1LEN = 4560;
+        static const Word MODE0LEN = 456 - (MODE2LEN + MODE3LEN);
 
         enum PpuMode {
             HBLANK = 0,
@@ -57,7 +63,7 @@ class Ppu {
             MODE2_INT = 5,
             MODE1_INT = 4,
             MODE0_INT = 3,
-            LYC_FLAG = 2,
+            LYC_FLAG = 2, // LY == LYC
             PPU_MODE_H = 1, // high bit of ppu mode
             PPU_MODE_L = 0  // low bit of ppu mode
         };
@@ -79,7 +85,7 @@ class Ppu {
         void loadWinToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc);
         void loadBgToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc);
         void renderScanline(Mmu &memory, Byte &currentLine, Byte &lcdc);
-        void LCDStatus(Mmu &memory);
+        void LCDStatus(Mmu &memory, uint &cycles, Byte &lcdc);
 };
 
 #endif

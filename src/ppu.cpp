@@ -20,11 +20,111 @@ void Ppu::reset() {
 
 Ppu::~Ppu() {}
 
+/*
+// void Ppu::LCDStatus(Mmu &memory) {
+//     // http://www.codeslinger.co.uk/pages/projects/gameboy/lcd.html
+//     Byte lcdStat = memory.readByte(Mmu::STAT);
+//     Byte lcdc = memory.readByte(Mmu::LCDC);
+//     if (!(getBit(lcdc, LCD_PPU_ENABLE))) { // if the 7th bit of LCDC (LCD Enable) if false
+//         scanlineCounter = 456;
+//         memory.writeByte(Mmu::LY, 0);
+//         lcdStat &= 0xFC; // 0 out the bottom 2 bits
+//         lcdStat |= HBLANK; // set the PPU Mode to HBlank (bottom 2 bits)
+//         memory.ioRegisters[Mmu::STAT - 0xFF00] = lcdStat;
+//         return;
+//     }
 
-void Ppu::LCDStatus(Mmu &memory) {
-    // http://www.codeslinger.co.uk/pages/projects/gameboy/lcd.html
+//     Byte currentLine = memory.readByte(Mmu::LY);
+//     Byte currentMode = lcdStat & 0x3; // PPU mode (oam, drawing, hblank, etc)
+
+//     Byte mode = HBLANK;
+//     bool intReq = false;
+
+//     if (currentLine >= GAMEBOY_HEIGHT) {
+//         mode = VBLANK;
+//         lcdStat = (lcdStat & 0xFC) | mode;
+//         intReq = getBit(lcdStat, MODE1_INT); // interrupt request equal to 4th bit of STAT
+//     } else {
+//         int mode2bounds = 456-80; // mode 2 is 80 cycles long, mode 3 is 172 cycles long, and mode 0 is 204 cycles long
+//         int mode3bounds = mode2bounds - 172;
+        
+//         if (scanlineCounter >= mode2bounds) {
+//             // mode 2
+//             mode = OAM;
+//             lcdStat = (lcdStat & 0xFC) | mode;
+//             intReq = getBit(lcdStat, MODE2_INT); // interrupt request equal to 5th bit of STAT (Mode 2 select)
+//         } else if (scanlineCounter >= mode3bounds) {
+//             // mode 3
+//             mode = DRAWING;
+//             lcdStat = (lcdStat & 0xFC) | mode;
+//         } else {
+//             // mode 0
+//             mode = HBLANK;
+//             lcdStat = (lcdStat & 0xFC) | mode;
+//             intReq = getBit(lcdStat, MODE0_INT); // interrupt request equal to 3th bit of STAT (Mode 2 select)
+//         }
+    
+
+//         // Byte currLY = memory.readByte(Mmu::LY);
+//         // Byte currLYC = memory.readByte(Mmu::LYC);
+//         // if (currLY == currLYC) {
+//             //     lcdStat = setBit(lcdStat, LYC_FLAG); // set the 2th bit to 1
+//             //     if (getBit(lcdStat, LYC_INT)) { // check 6th bit of STAT
+//             //         Byte IFreg = memory.readByte(Mmu::IF);
+//             //         IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
+//             //         memory.writeByte(Mmu::IF, IFreg);
+//             //     }
+//             // } else {
+//                 //         lcdStat = resetBit(lcdStat, LYC_FLAG);  // set the 2th bit to 0
+//                 // }
+//         Byte currLYC = memory.readByte(Mmu::LYC);
+//         bool oldCoincidence = getBit(lcdStat, LYC_FLAG);
+//         bool newCoincidence = (currentLine == currLYC);
+        
+//         if (newCoincidence) {
+//             lcdStat = setBit(lcdStat, LYC_FLAG);
+//         } else {
+//             lcdStat = resetBit(lcdStat, LYC_FLAG);
+//         }
+        
+//         if (!oldCoincidence && newCoincidence && getBit(lcdStat, LYC_INT)) {
+//             Byte IFreg = memory.readByte(Mmu::IF);
+//             IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
+//             memory.writeByte(Mmu::IF, IFreg);
+//             // requestStatInterrupt(memory);
+//         }
+
+//         // memory.writeByte(Mmu::STAT, lcdStat); // don't request it, do it directly
+//     }
+
+//     // if new mode, interrupt flag set
+//     // if (intReq && (mode != currentMode)) {
+//     //     Byte IFreg = memory.readByte(Mmu::IF);
+//     //     IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1 (LCD bit)
+//     //     memory.writeByte(Mmu::IF, IFreg);
+//     // }
+
+//     bool modeChanged = mode != currentMode;
+
+//     if (modeChanged) {
+//         if ((mode == HBLANK && getBit(lcdStat, MODE0_INT)) ||
+//             (mode == VBLANK && getBit(lcdStat, MODE1_INT)) ||
+//             (mode == OAM    && getBit(lcdStat, MODE2_INT))) {
+//             Byte IFreg = memory.readByte(Mmu::IF);
+//             IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
+//             memory.writeByte(Mmu::IF, IFreg);
+//             // requestStatInterrupt(memory);
+//         }
+//     }
+
+//     memory.ioRegisters[Mmu::STAT - 0xFF00] = lcdStat;
+// }
+*/
+
+void Ppu::LCDStatus(Mmu &memory, uint &cycles, Byte &lcdc) {
     Byte lcdStat = memory.readByte(Mmu::STAT);
-    Byte lcdc = memory.readByte(Mmu::LCDC);
+    Byte LY = memory.readByte(Mmu::LY); // current line
+    Byte LYC = memory.readByte(Mmu::LYC); // current line compare
     if (!(getBit(lcdc, LCD_PPU_ENABLE))) { // if the 7th bit of LCDC (LCD Enable) if false
         scanlineCounter = 456;
         memory.writeByte(Mmu::LY, 0);
@@ -34,90 +134,35 @@ void Ppu::LCDStatus(Mmu &memory) {
         return;
     }
 
-    Byte currentLine = memory.readByte(Mmu::LY);
-    Byte currentMode = lcdStat & 0x3; // PPU mode (oam, drawing, hblank, etc)
-
-    Byte mode = HBLANK;
-    bool intReq = false;
-
-    if (currentLine >= GAMEBOY_HEIGHT) {
-        mode = VBLANK;
-        lcdStat = (lcdStat & 0xFC) | mode;
-        intReq = getBit(lcdStat, MODE1_INT); // interrupt request equal to 4th bit of STAT
+    Byte newMode;
+    if (LY >= GAMEBOY_HEIGHT) {
+        newMode = VBLANK;
+    } else if (scanlineCounter >= 456 - MODE2LEN) {
+        newMode = OAM;
+    } else if (scanlineCounter >= 456 - (MODE2LEN + MODE3LEN)) { // TODO maybe make this into one combined value (mode 3 bounds)
+        newMode = DRAWING;
     } else {
-        int mode2bounds = 456-80; // mode 2 is 80 cycles long, mode 3 is 172 cycles long, and mode 0 is 204 cycles long
-        int mode3bounds = mode2bounds - 172;
-        
-        if (scanlineCounter >= mode2bounds) {
-            // mode 2
-            mode = OAM;
-            lcdStat = (lcdStat & 0xFC) | mode;
-            intReq = getBit(lcdStat, MODE2_INT); // interrupt request equal to 5th bit of STAT (Mode 2 select)
-        } else if (scanlineCounter >= mode3bounds) {
-            // mode 3
-            mode = DRAWING;
-            lcdStat = (lcdStat & 0xFC) | mode;
-        } else {
-            // mode 0
-            mode = HBLANK;
-            lcdStat = (lcdStat & 0xFC) | mode;
-            intReq = getBit(lcdStat, MODE0_INT); // interrupt request equal to 3th bit of STAT (Mode 2 select)
-        }
-    
-
-        // Byte currLY = memory.readByte(Mmu::LY);
-        // Byte currLYC = memory.readByte(Mmu::LYC);
-        // if (currLY == currLYC) {
-            //     lcdStat = setBit(lcdStat, LYC_FLAG); // set the 2th bit to 1
-            //     if (getBit(lcdStat, LYC_INT)) { // check 6th bit of STAT
-            //         Byte IFreg = memory.readByte(Mmu::IF);
-            //         IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
-            //         memory.writeByte(Mmu::IF, IFreg);
-            //     }
-            // } else {
-                //         lcdStat = resetBit(lcdStat, LYC_FLAG);  // set the 2th bit to 0
-                // }
-        Byte currLYC = memory.readByte(Mmu::LYC);
-        bool oldCoincidence = getBit(lcdStat, LYC_FLAG);
-        bool newCoincidence = (currentLine == currLYC);
-        
-        if (newCoincidence) {
-            lcdStat = setBit(lcdStat, LYC_FLAG);
-        } else {
-            lcdStat = resetBit(lcdStat, LYC_FLAG);
-        }
-        
-        if (!oldCoincidence && newCoincidence && getBit(lcdStat, LYC_INT)) {
-            Byte IFreg = memory.readByte(Mmu::IF);
-            IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
-            memory.writeByte(Mmu::IF, IFreg);
-            // requestStatInterrupt(memory);
-        }
-
-        // memory.writeByte(Mmu::STAT, lcdStat); // don't request it, do it directly
+        newMode = HBLANK;
     }
 
-    // if new mode, interrupt flag set
-    // if (intReq && (mode != currentMode)) {
-    //     Byte IFreg = memory.readByte(Mmu::IF);
-    //     IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1 (LCD bit)
-    //     memory.writeByte(Mmu::IF, IFreg);
-    // }
+    Byte newLcdStat = lcdStat & 0xFC;
+    newLcdStat |= newMode;
 
-    bool modeChanged = mode != currentMode;
+    bool LYeqLYC = (LY == LYC);
+    newLcdStat = LYeqLYC ? setBit(newLcdStat, LYC_FLAG): resetBit(newLcdStat, LYC_FLAG);
 
-    if (modeChanged) {
-        if ((mode == HBLANK && getBit(lcdStat, MODE0_INT)) ||
-            (mode == VBLANK && getBit(lcdStat, MODE1_INT)) ||
-            (mode == OAM    && getBit(lcdStat, MODE2_INT))) {
-            Byte IFreg = memory.readByte(Mmu::IF);
-            IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
-            memory.writeByte(Mmu::IF, IFreg);
-            // requestStatInterrupt(memory);
-        }
+    memory.ioRegisters[Mmu::STAT - 0xFF00] = newLcdStat;
+
+    if ((LYeqLYC && getBit(lcdStat, LYC_INT)) ||
+        ((newMode == OAM) && getBit(lcdStat, MODE2_INT)) ||
+        ((newMode == HBLANK) && getBit(lcdStat, MODE0_INT)) ||
+        ((newMode == VBLANK) && getBit(lcdStat, MODE1_INT)))
+    {
+        // check if any of the LCD interrupt conditions are met
+        Byte IFreg = memory.readByte(Mmu::IF);
+        IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
+        memory.writeByte(Mmu::IF, IFreg);
     }
-
-    memory.ioRegisters[Mmu::STAT - 0xFF00] = lcdStat;
 }
 
 
@@ -128,13 +173,17 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
     // https://gbdev.io/pandocs/OAM.html
     for (int i = 0; i < oamSize; i+=4) {
 
-        bool mode = getBit(lcdc, 2); // 0 = 8x8, 1 = 8x16
+        bool mode = getBit(lcdc, OBJ_SIZE); // 0 = 8x8, 1 = 8x16
         int yPos = memory.readByte(oamStart + i) - 16; // the data is given as yPos + 16
         int xPos = memory.readByte(oamStart + i + 1) - 8; // the data is given as xPos + 8
         Byte ySize = mode ? 16 : 8;
 
         if ((currentLine >= yPos) && (currentLine < yPos + ySize)) { // does the LY contain the sprite?
             // printf("rendering sprite at LY=%d, xPos=%d, yPos=%d\n", currentLine, xPos, yPos);
+
+            oamCounter++;
+            if (oamCounter > 10) return;
+
             Byte tileId = memory.readByte(oamStart + i + 2);
             Byte attFlags = memory.readByte(oamStart + i + 3); // Attributes/Flags
             bool priority = getBit(attFlags, 7);
@@ -152,15 +201,12 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
                 rowUsed -= (ySize - 1);
                 rowUsed *= -1;
             }
-            Word tileAddress = 0x8000 + (tileId * 16) + (rowUsed * 2); // sprites always read starting from 0x8000
+            Byte tileIndex = mode ? (tileId & 0xFE) : tileId;
+            Word tileAddress = 0x8000 + (tileIndex * 16) + (rowUsed * 2); // sprites always read starting from 0x8000
             Byte lo = memory.readByte(tileAddress);
             Byte hi = memory.readByte(tileAddress + 1);
             for (int col = 7; col >= 0; --col) {
-                if (yPos < 0 ||
-                    xPos >= GAMEBOY_WIDTH ||
-                    yPos >= GAMEBOY_HEIGHT ||
-                    xPos + col >= GAMEBOY_WIDTH
-                ) continue;
+                if (xPos + col < 0 || xPos + col >= GAMEBOY_WIDTH) continue;
                 int colUsed = col;
                 // if (xFlip) {
                 //     colUsed -= 7;
@@ -168,9 +214,6 @@ void Ppu::loadOamToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
                 // }
 
                 int tileX = xFlip ? 7 - col : col;
-
-                oamCounter++;
-                if (oamCounter > 10) return;
 
                 // Byte paletteId = getBit(lo, 7 - colUsed) | (getBit(hi, 7 - colUsed) << 1);
                 Byte paletteId = getBit(lo, 7 - tileX) | (getBit(hi, 7 - tileX) << 1);
@@ -307,17 +350,16 @@ void Ppu::renderScanline(Mmu &memory, Byte &currentLine, Byte &lcdc) {
 
     Byte BGandWinEnabled = getBit(lcdc, BG_WIN_ENABLE); // if this is false, the background and window are disabled, and the bg&window are white
     if (!BGandWinEnabled) {
-        // std::fill(frameBuffer.begin(), frameBuffer.begin() + frameBufferSize, 255); // make the whole bg & window white
         std::fill(frameBuffer.begin() + (currentLine * GAMEBOY_WIDTH * 3), frameBuffer.begin() + ((currentLine + 1) * GAMEBOY_WIDTH * 3), 255); // make the current line white
     } else {
         loadBgToFrameBuffer(memory, currentLine, lcdc);
-        if (
-            winYcondition &&
-            getBit(lcdc, WIN_ENABLE) &&
-            static_cast<int>(memory.readByte(Mmu::WX) - 7) < GAMEBOY_WIDTH
-        ) {
-            loadWinToFrameBuffer(memory, currentLine, lcdc);
-        }
+        // if (
+        //     winYcondition &&
+        //     getBit(lcdc, WIN_ENABLE) &&
+        //     static_cast<int>(memory.readByte(Mmu::WX) - 7) < GAMEBOY_WIDTH
+        // ) {
+        //     loadWinToFrameBuffer(memory, currentLine, lcdc);
+        // }
     }
 
     loadOamToFrameBuffer(memory, currentLine, lcdc);
@@ -327,9 +369,9 @@ void Ppu::renderScanline(Mmu &memory, Byte &currentLine, Byte &lcdc) {
 void Ppu::updateGraphics(Mmu &memory, uint cycles) {
 
     scanlineCounter -= cycles;
-    LCDStatus(memory);
-
     Byte lcdc = memory.readByte(Mmu::LCDC); // LCD control
+    LCDStatus(memory, cycles, lcdc);
+
     bool isLcdEnabled = getBit(lcdc, LCD_PPU_ENABLE);
     if (!isLcdEnabled) {
         return;
@@ -341,12 +383,17 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
 
         scanlineCounter += 456; // reset scaline counter for the next line
 
-        if (currentLine == GAMEBOY_HEIGHT) { // if end of line, enter vblank
-            winYcondition = false; // window Y condition set to false every VBLank
-            windowLineCounter = 0; // resets at the beginning of each VBlank
-            // set bit 0 of IF to request vblank interrupt
-            memory.writeByte(Mmu::IF, memory.readByte(Mmu::IF) | 0x01);
-        } else if (currentLine > 153) {
+        // if (currentLine == GAMEBOY_HEIGHT) { // if end of line, enter vblank
+        //     winYcondition = false; // window Y condition set to false every VBLank
+        //     windowLineCounter = 0; // resets at the beginning of each VBlank
+        //     // set bit 0 of IF to request vblank interrupt
+        //     memory.writeByte(Mmu::IF, memory.readByte(Mmu::IF) | 0x01);
+        // } else if (currentLine > 153) {
+        //     currentLine = 0;
+        // } else if (currentLine < 144) {
+        //     renderScanline(memory, currentLine, lcdc);
+        // }
+        if (currentLine > 153) {
             currentLine = 0;
         } else if (currentLine < 144) {
             renderScanline(memory, currentLine, lcdc);
