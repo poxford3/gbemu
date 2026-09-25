@@ -378,8 +378,8 @@ void Mmu::writeByte(Word address, Byte value) {
     } else if (address >= 0xFF80 && address <= 0xFFFE) {
         HRam[address - 0xFF80] = value;
     } else if (address >= 0xFF00 && address <= 0xFF7F) {
-        if (address == DIV) {
-            ioRegisters[address - 0xFF00] = 0; // writes to DIV (0xFF04) always result in 0
+        if (address == DIV || address == LY) {
+            ioRegisters[address - 0xFF00] = 0; // writes to DIV (0xFF04) and LY (0xFF44) always result in 0
         } else {
             ioRegisters[address - 0xFF00] = value;
         }

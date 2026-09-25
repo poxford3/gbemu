@@ -315,7 +315,7 @@ void Ppu::loadBgToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
         Word tileAddress;
         if (tileDataStart == 0x8000)
         {
-            tileAddress = tileDataStart + tileId * 16;
+            tileAddress = tileDataStart + tileId * 16; // 16 is the size of a tile in bits (2 bytes)
         }
         else {
             tileAddress = tileDataStart + (int8_t)tileId * 16;
@@ -378,7 +378,7 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
     }
 
     if (scanlineCounter <= 0) {
-        Byte currentLine = memory.readByte(Mmu::LY);
+        Byte currentLine = memory.ioRegisters[Mmu::LY - 0xFF00];
         currentLine++;
 
         scanlineCounter += 456; // reset scaline counter for the next line
@@ -398,7 +398,8 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
         } else if (currentLine < 144) {
             renderScanline(memory, currentLine, lcdc);
         }
-        memory.writeByte(Mmu::LY, currentLine);
+        // memory.writeByte(Mmu::LY, currentLine);
+        memory.ioRegisters[Mmu::LY - 0xFF00] = currentLine;
     }
 }
 
