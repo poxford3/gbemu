@@ -8,13 +8,7 @@ Ppu::Ppu() {}
 void Ppu::reset() {
     tileData.fill(0);
     oldIntCheck = false;
-    for (int i = 0; i < frameBuffer.size(); i++) {
-        if (i % 2 == 0) {
-            frameBuffer[i] = 1;
-        } else {
-            frameBuffer[i] = 0;
-        }
-    }
+    for (size_t i = 0; i < frameBuffer.size(); i++) frameBuffer[i] = 0;
     palette.selectedPalette = BlackWhite;
 }
 
@@ -63,6 +57,7 @@ void Ppu::LCDStatus(Mmu &memory, uint &cycles, Byte &lcdc) {
         ((newMode == VBLANK) && getBit(newLcdStat, MODE1_INT)));
 
 
+    // todo optimize this to only run checks as they happen, not every check every time
     if (!oldIntCheck && newIntCheck) { // if it goes from 0->1
         // check if any of the LCD interrupt conditions are met
         Byte IFreg = memory.readByte(Mmu::IF);
@@ -223,8 +218,7 @@ void Ppu::loadBgToFrameBuffer(Mmu &memory, Byte &currentLine, Byte &lcdc) {
         Word tileMapAddress = tileMapStart + (currentTileRow * 32) + currentTileCol; // tile map address from the given row and col, offset by the tile map start
         Byte tileId = memory.readByte(tileMapAddress);
         Word tileAddress;
-        if (tileDataStart == 0x8000)
-        {
+        if (tileDataStart == 0x8000) {
             tileAddress = tileDataStart + tileId * 16; // 16 is the size of a tile in bits (2 bytes)
         }
         else {
@@ -263,13 +257,13 @@ void Ppu::renderScanline(Mmu &memory, Byte &currentLine, Byte &lcdc) {
         std::fill(frameBuffer.begin() + (currentLine * GAMEBOY_WIDTH * 3), frameBuffer.begin() + ((currentLine + 1) * GAMEBOY_WIDTH * 3), 255); // make the current line white
     } else {
         loadBgToFrameBuffer(memory, currentLine, lcdc);
-        // if (
-        //     winYcondition &&
-        //     getBit(lcdc, WIN_ENABLE) &&
-        //     static_cast<int>(memory.readByte(Mmu::WX) - 7) < GAMEBOY_WIDTH
-        // ) {
-        //     loadWinToFrameBuffer(memory, currentLine, lcdc);
-        // }
+        if (
+            winYcondition &&
+            getBit(lcdc, WIN_ENABLE) &&
+            static_cast<int>(memory.readByte(Mmu::WX) - 7) < GAMEBOY_WIDTH
+        ) {
+            loadWinToFrameBuffer(memory, currentLine, lcdc);
+        }
     }
 
     loadOamToFrameBuffer(memory, currentLine, lcdc);
@@ -287,12 +281,18 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
         return;
     }
 
+    // reorganization thanks to @peter1508 on emudev discord
     if (scanlineCounter <= 0) {
         Byte currentLine = memory.ioRegisters[Mmu::LY - 0xFF00];
-        currentLine++;
-
         scanlineCounter += 456; // reset scaline counter for the next line
-
+        if (currentLine < 144) {
+            renderScanline(memory, currentLine, lcdc);
+        }
+        // memory.ioRegisters[Mmu::LY - 0xFF00] = currentLine;
+        currentLine++;
+        if (currentLine > 153) {
+            currentLine = 0;
+        } else
         if (currentLine == GAMEBOY_HEIGHT) { // if end of line, enter vblank
             winYcondition = false; // window Y condition set to false every VBLank
             windowLineCounter = 0; // resets at the beginning of each VBlank
@@ -300,12 +300,7 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
             Byte IFreg = memory.readByte(Mmu::IF);
             IFreg = setBit(IFreg, Cpu::Interrupt::VBLANK);
             memory.writeByte(Mmu::IF, IFreg);
-        } else if (currentLine > 153) {
-            currentLine = 0;
-        } else if (currentLine < 144) {
-            renderScanline(memory, currentLine, lcdc);
         }
-        // memory.writeByte(Mmu::LY, currentLine);
         memory.ioRegisters[Mmu::LY - 0xFF00] = currentLine;
     }
 }
