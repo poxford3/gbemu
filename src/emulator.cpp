@@ -41,6 +41,8 @@ void Emulator::init() {
                     emulatorScreenHeight,
                     SDL_WINDOW_SHOWN);
 
+    SDL_SetHint (SDL_HINT_RENDER_SCALE_QUALITY, 0); //todo verify if this is needed
+
     if (window == NULL) {
         printf("error initializing window. SDL error: %s\n", SDL_GetError());
     }
