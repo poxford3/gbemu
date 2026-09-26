@@ -7,6 +7,7 @@ Ppu::Ppu() {}
 
 void Ppu::reset() {
     tileData.fill(0);
+    oldIntCheck = false;
     for (int i = 0; i < frameBuffer.size(); i++) {
         if (i % 2 == 0) {
             frameBuffer[i] = 1;
@@ -20,106 +21,6 @@ void Ppu::reset() {
 
 Ppu::~Ppu() {}
 
-/*
-// void Ppu::LCDStatus(Mmu &memory) {
-//     // http://www.codeslinger.co.uk/pages/projects/gameboy/lcd.html
-//     Byte lcdStat = memory.readByte(Mmu::STAT);
-//     Byte lcdc = memory.readByte(Mmu::LCDC);
-//     if (!(getBit(lcdc, LCD_PPU_ENABLE))) { // if the 7th bit of LCDC (LCD Enable) if false
-//         scanlineCounter = 456;
-//         memory.writeByte(Mmu::LY, 0);
-//         lcdStat &= 0xFC; // 0 out the bottom 2 bits
-//         lcdStat |= HBLANK; // set the PPU Mode to HBlank (bottom 2 bits)
-//         memory.ioRegisters[Mmu::STAT - 0xFF00] = lcdStat;
-//         return;
-//     }
-
-//     Byte currentLine = memory.readByte(Mmu::LY);
-//     Byte currentMode = lcdStat & 0x3; // PPU mode (oam, drawing, hblank, etc)
-
-//     Byte mode = HBLANK;
-//     bool intReq = false;
-
-//     if (currentLine >= GAMEBOY_HEIGHT) {
-//         mode = VBLANK;
-//         lcdStat = (lcdStat & 0xFC) | mode;
-//         intReq = getBit(lcdStat, MODE1_INT); // interrupt request equal to 4th bit of STAT
-//     } else {
-//         int mode2bounds = 456-80; // mode 2 is 80 cycles long, mode 3 is 172 cycles long, and mode 0 is 204 cycles long
-//         int mode3bounds = mode2bounds - 172;
-        
-//         if (scanlineCounter >= mode2bounds) {
-//             // mode 2
-//             mode = OAM;
-//             lcdStat = (lcdStat & 0xFC) | mode;
-//             intReq = getBit(lcdStat, MODE2_INT); // interrupt request equal to 5th bit of STAT (Mode 2 select)
-//         } else if (scanlineCounter >= mode3bounds) {
-//             // mode 3
-//             mode = DRAWING;
-//             lcdStat = (lcdStat & 0xFC) | mode;
-//         } else {
-//             // mode 0
-//             mode = HBLANK;
-//             lcdStat = (lcdStat & 0xFC) | mode;
-//             intReq = getBit(lcdStat, MODE0_INT); // interrupt request equal to 3th bit of STAT (Mode 2 select)
-//         }
-    
-
-//         // Byte currLY = memory.readByte(Mmu::LY);
-//         // Byte currLYC = memory.readByte(Mmu::LYC);
-//         // if (currLY == currLYC) {
-//             //     lcdStat = setBit(lcdStat, LYC_FLAG); // set the 2th bit to 1
-//             //     if (getBit(lcdStat, LYC_INT)) { // check 6th bit of STAT
-//             //         Byte IFreg = memory.readByte(Mmu::IF);
-//             //         IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
-//             //         memory.writeByte(Mmu::IF, IFreg);
-//             //     }
-//             // } else {
-//                 //         lcdStat = resetBit(lcdStat, LYC_FLAG);  // set the 2th bit to 0
-//                 // }
-//         Byte currLYC = memory.readByte(Mmu::LYC);
-//         bool oldCoincidence = getBit(lcdStat, LYC_FLAG);
-//         bool newCoincidence = (currentLine == currLYC);
-        
-//         if (newCoincidence) {
-//             lcdStat = setBit(lcdStat, LYC_FLAG);
-//         } else {
-//             lcdStat = resetBit(lcdStat, LYC_FLAG);
-//         }
-        
-//         if (!oldCoincidence && newCoincidence && getBit(lcdStat, LYC_INT)) {
-//             Byte IFreg = memory.readByte(Mmu::IF);
-//             IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
-//             memory.writeByte(Mmu::IF, IFreg);
-//             // requestStatInterrupt(memory);
-//         }
-
-//         // memory.writeByte(Mmu::STAT, lcdStat); // don't request it, do it directly
-//     }
-
-//     // if new mode, interrupt flag set
-//     // if (intReq && (mode != currentMode)) {
-//     //     Byte IFreg = memory.readByte(Mmu::IF);
-//     //     IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1 (LCD bit)
-//     //     memory.writeByte(Mmu::IF, IFreg);
-//     // }
-
-//     bool modeChanged = mode != currentMode;
-
-//     if (modeChanged) {
-//         if ((mode == HBLANK && getBit(lcdStat, MODE0_INT)) ||
-//             (mode == VBLANK && getBit(lcdStat, MODE1_INT)) ||
-//             (mode == OAM    && getBit(lcdStat, MODE2_INT))) {
-//             Byte IFreg = memory.readByte(Mmu::IF);
-//             IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
-//             memory.writeByte(Mmu::IF, IFreg);
-//             // requestStatInterrupt(memory);
-//         }
-//     }
-
-//     memory.ioRegisters[Mmu::STAT - 0xFF00] = lcdStat;
-// }
-*/
 
 void Ppu::LCDStatus(Mmu &memory, uint &cycles, Byte &lcdc) {
     Byte lcdStat = memory.readByte(Mmu::STAT);
@@ -135,34 +36,43 @@ void Ppu::LCDStatus(Mmu &memory, uint &cycles, Byte &lcdc) {
     }
 
     Byte newMode;
+    bool modeInt;
     if (LY >= GAMEBOY_HEIGHT) {
-        newMode = VBLANK;
+        newMode = VBLANK; // mode 1
+        modeInt = getBit(lcdStat, MODE1_INT);
     } else if (scanlineCounter >= 456 - MODE2LEN) {
-        newMode = OAM;
+        newMode = OAM; // mode 2
+        modeInt = getBit(lcdStat, MODE2_INT);
     } else if (scanlineCounter >= 456 - (MODE2LEN + MODE3LEN)) { // TODO maybe make this into one combined value (mode 3 bounds)
-        newMode = DRAWING;
+        newMode = DRAWING; // mode 3
     } else {
-        newMode = HBLANK;
+        newMode = HBLANK; // mode 0
+        modeInt = getBit(lcdStat, MODE0_INT);
     }
 
+    // set the lcd stat bits (bottom 2 bits)
     Byte newLcdStat = lcdStat & 0xFC;
     newLcdStat |= newMode;
 
     bool LYeqLYC = (LY == LYC);
-    newLcdStat = LYeqLYC ? setBit(newLcdStat, LYC_FLAG): resetBit(newLcdStat, LYC_FLAG);
+    newLcdStat = LYeqLYC ? setBit(newLcdStat, LYC_FLAG) : resetBit(newLcdStat, LYC_FLAG);
 
-    memory.ioRegisters[Mmu::STAT - 0xFF00] = newLcdStat;
+    bool newIntCheck = ((LYeqLYC && getBit(newLcdStat, LYC_INT)) ||
+        ((newMode == OAM) && getBit(newLcdStat, MODE2_INT)) ||
+        ((newMode == HBLANK) && getBit(newLcdStat, MODE0_INT)) ||
+        ((newMode == VBLANK) && getBit(newLcdStat, MODE1_INT)));
 
-    if ((LYeqLYC && getBit(lcdStat, LYC_INT)) ||
-        ((newMode == OAM) && getBit(lcdStat, MODE2_INT)) ||
-        ((newMode == HBLANK) && getBit(lcdStat, MODE0_INT)) ||
-        ((newMode == VBLANK) && getBit(lcdStat, MODE1_INT)))
-    {
+
+    if (!oldIntCheck && newIntCheck) { // if it goes from 0->1
         // check if any of the LCD interrupt conditions are met
         Byte IFreg = memory.readByte(Mmu::IF);
         IFreg = setBit(IFreg, Cpu::Interrupt::LCD_STAT); // set the 1th bit to 1
         memory.writeByte(Mmu::IF, IFreg);
     }
+
+    oldIntCheck = newIntCheck;
+
+    memory.ioRegisters[Mmu::STAT - 0xFF00] = newLcdStat;
 }
 
 
@@ -383,17 +293,14 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
 
         scanlineCounter += 456; // reset scaline counter for the next line
 
-        // if (currentLine == GAMEBOY_HEIGHT) { // if end of line, enter vblank
-        //     winYcondition = false; // window Y condition set to false every VBLank
-        //     windowLineCounter = 0; // resets at the beginning of each VBlank
-        //     // set bit 0 of IF to request vblank interrupt
-        //     memory.writeByte(Mmu::IF, memory.readByte(Mmu::IF) | 0x01);
-        // } else if (currentLine > 153) {
-        //     currentLine = 0;
-        // } else if (currentLine < 144) {
-        //     renderScanline(memory, currentLine, lcdc);
-        // }
-        if (currentLine > 153) {
+        if (currentLine == GAMEBOY_HEIGHT) { // if end of line, enter vblank
+            winYcondition = false; // window Y condition set to false every VBLank
+            windowLineCounter = 0; // resets at the beginning of each VBlank
+            // set bit 0 of IF to request vblank interrupt
+            Byte IFreg = memory.readByte(Mmu::IF);
+            IFreg = setBit(IFreg, Cpu::Interrupt::VBLANK);
+            memory.writeByte(Mmu::IF, IFreg);
+        } else if (currentLine > 153) {
             currentLine = 0;
         } else if (currentLine < 144) {
             renderScanline(memory, currentLine, lcdc);

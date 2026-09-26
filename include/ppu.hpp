@@ -51,6 +51,8 @@ class Ppu {
         static const Word MODE1LEN = 4560;
         static const Word MODE0LEN = 456 - (MODE2LEN + MODE3LEN);
 
+        bool oldIntCheck; // this checks whether the conditions have been met for an LCD int
+
         enum PpuMode {
             HBLANK = 0,
             VBLANK = 1,
