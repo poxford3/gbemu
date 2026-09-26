@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
+#include <string>
+#include "gameboy.hpp"
 
 #ifndef FILE_HPP
 #define FILE_HPP
@@ -18,8 +20,8 @@ public:
     void readRandomValues(const std::vector<unsigned char>& buffer, int start, int length);
     void readNthByte(const std::vector<unsigned char>& buffer, int n);
 
-    // void createSaveFile(const std::string &saveFilePath, Cpu &cpu, Mmu &mmu);
-    // void loadSaveFile(const std::string &saveFilePath, Cpu &cpu, Mmu &mmu);
+    void createSaveFile(const std::string &saveFilePath, Gameboy &gameboy);
+    void loadSaveFile(const std::string &saveFilePath, Gameboy &gameboy);
 
 private:
     std::string m_filePath;

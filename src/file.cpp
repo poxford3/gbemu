@@ -2,6 +2,7 @@
 #include "utils/file.hpp"
 #include "utils/types.hpp"
 
+
 FileHandler::FileHandler(const std::string& filePath) : m_filePath{filePath} {
     if (filePath.length() > 0) {
         if (filePath.substr(filePath.length() - 3) == ".gb") {
@@ -47,4 +48,28 @@ void FileHandler::readNthByte(const std::vector<Byte>& buffer, int n) {
     } else {
         std::cerr << "Index out of bounds!" << std::endl;
     }
+}
+
+void FileHandler::createSaveFile(const std::string &saveFilePath, Gameboy &gameboy) {
+    std::ofstream saveFile(saveFilePath, std::ios::binary);
+    if (!saveFile) {
+        std::cerr << "Error creating save file!" << std::endl;
+        return;
+    }
+    // gameboy state here
+    // if (gameboy->mmu.)
+    // serialize gameboy state to saveFile here
+
+    saveFile.close();
+}
+
+void FileHandler::loadSaveFile(const std::string &saveFilePath, Gameboy &gameboy) {
+    std::ifstream saveFile(saveFilePath, std::ios::binary);
+    if (!saveFile) {
+        std::cerr << "Error loading save file!" << std::endl;
+        return;
+    }
+    // Read CPU and MMU state from the save file
+    // Implementation depends on how you want to deserialize the state
+    saveFile.close();
 }

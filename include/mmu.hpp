@@ -2,10 +2,17 @@
 #include <algorithm>
 #include "utils/types.hpp"
 #include "utils/bit.hpp"
-#include "utils/file.hpp"
 
 #ifndef MMU_HPP
 #define MMU_HPP
+
+struct CartridgeType {
+    Byte MBCType;
+    bool hasRAM;
+    bool hasBattery;
+    bool hasTimer;
+    bool hasRumble;
+};
 
 class Mmu {
     public:
@@ -97,12 +104,11 @@ class Mmu {
     private:
         // https://gbdev.io/pandocs/The_Cartridge_Header.html#0147--cartridge-type
         void handleRomWrite(Word address, Byte value);
-        void getMBCType(Byte bank);
+        void setCartridgeType(Byte MBCvalue);
         void getRamSize(Byte RAMvalue, Byte MBCvalue);
         void swapRomBank(Byte bank);
 
-
-        Byte MBCType = 0; // type of memory bank controller, value found at 0x147 in ROM header
+        CartridgeType cartridge;
 
         Byte currentRomBank = 1;
         bool bankingMode = false;
