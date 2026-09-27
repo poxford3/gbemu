@@ -1,7 +1,6 @@
 #include <nfd.h>
 #include <memory>
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
@@ -17,9 +16,10 @@ class Emulator {
     public:
         Emulator();
         ~Emulator();
-        void init();
+        void initGraphics();
         void run();
         const char* emulatorTitle = "gbemu";
+        FileHandler fileHandler;
         FileHandler getFileFromUser();
         private:
         bool running;
@@ -35,7 +35,6 @@ class Emulator {
         SDL_Renderer* renderer;
         SDL_Texture* gbTexture;
         SDL_Texture* tileDataTexture;
-        TTF_Font* font;
         SDL_Renderer* GetRenderer();
         std::optional<Gameboy> gameboy;
 
@@ -43,6 +42,8 @@ class Emulator {
         void createGameboyTextures();
         void renderMenuBar();
         void showRamContents();
+        void saveGame();
+        void loadSave();
 
 };
 

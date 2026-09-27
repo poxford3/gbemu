@@ -2,10 +2,17 @@
 #include <algorithm>
 #include "utils/types.hpp"
 #include "utils/bit.hpp"
-#include "utils/file.hpp"
 
 #ifndef MMU_HPP
 #define MMU_HPP
+
+struct CartridgeType {
+    Byte MBCType;
+    bool hasRAM;
+    bool hasBattery;
+    bool hasTimer;
+    bool hasRumble;
+};
 
 class Mmu {
     public:
@@ -82,6 +89,9 @@ class Mmu {
         
         
         std::vector<Byte> entireRom;
+        CartridgeType cartridge;
+        uint RAMSize = 0; // 0x149 in ROM header
+        std::array<Byte, 0x20000> externalRam = {0}; // max size of external RAM is 128kb, so allocating plenty. Most use less
 
         void reset();
         void loadRom(const std::vector<Byte>& program);
@@ -97,21 +107,17 @@ class Mmu {
     private:
         // https://gbdev.io/pandocs/The_Cartridge_Header.html#0147--cartridge-type
         void handleRomWrite(Word address, Byte value);
-        void getMBCType(Byte bank);
+        void setCartridgeType(Byte MBCvalue);
         void getRamSize(Byte RAMvalue, Byte MBCvalue);
         void swapRomBank(Byte bank);
-
-
-        Byte MBCType = 0; // type of memory bank controller, value found at 0x147 in ROM header
 
         Byte currentRomBank = 1;
         bool bankingMode = false;
         Byte ROMSize = 0; // 0x148 in ROM header
 
         // Byte externalRam[0x8000]; // max size of external RAM is 32KB, so allocating plenty. Most use less
-        std::array<Byte, 0x20000> externalRam = {0}; // max size of external RAM is 128kb, so allocating plenty. Most use less
+        
         Byte currentRamBank = 0;
-        uint RAMSize = 0; // 0x149 in ROM header
         bool RAMEnabled = false;
 
         // MBC3 registers/vals

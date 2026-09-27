@@ -1,7 +1,6 @@
 #include <time.h>
 #include "mmu.hpp"
 #include "gameboy.hpp"
-#include "utils/bit.hpp"
 
 Mmu::Mmu() {
     std::fill(std::begin(romBank0), std::end(romBank0), 0);
@@ -11,7 +10,7 @@ Mmu::Mmu() {
     std::fill(std::begin(workRamBankN), std::end(workRamBankN), 0);
     std::fill(std::begin(oam), std::end(oam), 0);
     std::fill(std::begin(HRam), std::end(HRam), 0);
-    ioRegisters[interruptEnableRegister - 0xFF00] = 0;
+    ioRegisters[interruptEnableRegister - 0xFF00] = 0; // <- todo, is this necessary?
     std::fill(std::begin(ioRegisters), std::end(ioRegisters), 0);
 }
 
@@ -31,10 +30,10 @@ void Mmu::loadRom(const std::vector<Byte>& program) {
 
     entireRom = program;
     // pandocs pg 164
-    getMBCType(program[0x147]);
+    setCartridgeType(program[0x147]);
     // pandocs pg 156
     ROMSize = 0x7D00 * (1 << program[0x148]); // 32kb * number of banks
-    getRamSize(program[0x149], program[0x147]);
+    if (cartridge.hasRAM) getRamSize(program[0x149], program[0x147]);
     RAMEnabled = false;
 }
 
@@ -109,50 +108,32 @@ void Mmu::reset() {
 }
 
 
-void Mmu::getMBCType(Byte MBCvalue) {
-    // https://gbdev.io/pandocs/MBCs.html#mbc-unmapped-ram-bank-access
-    // https://gbdev.io/pandocs/The_Cartridge_Header.html?highlight=%240148#0147--cartridge-type
+void Mmu::setCartridgeType(Byte MBCvalue) {
     switch (MBCvalue) {
-        case 0x00: // MBC 0
-            MBCType = 0;
-            break;
-        case 0x01: 
-        case 0x02: 
-        case 0x03: // MBC 1
-            MBCType = 1;
-            break;
-        case 0x05:
-        case 0x06: // MBC 2
-            MBCType = 2;
-            break;
-        case 0x0F:
-        case 0x10:
-        case 0x11:
-        case 0x12:
-        case 0x13: // MBC 3
-            MBCType = 3;
-            break;
-        case 0x1A:
-        case 0x1B:
-        case 0x1C:
-        case 0x1D:
-        case 0x1E: // MBC 5
-            MBCType = 5;
-            break;
-
+        //                      MBC RAM     Battery Timer   Rumble
+        case 0x00: cartridge = {0, false,   false,  false,  false}; break;
+        case 0x01: cartridge = {1, false,   false,  false,  false}; break;
+        case 0x02: cartridge = {1, true,    false,  false,  false}; break;
+        case 0x03: cartridge = {1, true,    true,   false,  false}; break;
+        case 0x05: cartridge = {2, false,   false,  false,  false}; break;
+        case 0x06: cartridge = {2, false,   true,   false,  false}; break;
+        case 0x0F: cartridge = {3, false,   true,   true,   false}; break;
+        case 0x10: cartridge = {3, true,    true,   true,   false}; break;
+        case 0x11: cartridge = {3, false,   false,  false,  false}; break;
+        case 0x12: cartridge = {3, true,    false,  false,  false}; break;
+        case 0x13: cartridge = {3, true,    true,   false,  false}; break;
+        case 0x19: cartridge = {5, true,    true,   false,  false}; break;
+        case 0x1A: cartridge = {5, true,    false,  false,  false}; break;
+        case 0x1B: cartridge = {5, true,    true,   false,  false}; break;
+        case 0x1C: cartridge = {5, false,   false,  false,  true}; break;
+        case 0x1D: cartridge = {5, true,    false,  false,  true}; break;
+        case 0x1E: cartridge = {5, true,    true,   false,  true}; break;
     }
 }
 
 
 void Mmu::getRamSize(Byte RAMvalue, Byte MBCvalue) {
-    // all the carts that have ram on the board
-    std::vector<Byte> listOfPossibleRamCarts = {
-        0x02, 0x03, 0x08, 0x09, 0x0C, 0x0D,
-        0x10, 0x12, 0x13, 0x1A, 0x1B, 0x1D,
-        0x1E, 0x22, 0xFF
-    };
-    // https://stackoverflow.com/a/24139474/7361467
-    if ((std::find(listOfPossibleRamCarts.begin(), listOfPossibleRamCarts.end(), MBCvalue)) != listOfPossibleRamCarts.end()) {
+    if (cartridge.hasRAM) {
         switch (RAMvalue) {
             case 0x00: RAMSize = 0; break;
             case 0x01: break; // unused
@@ -179,7 +160,7 @@ void Mmu::swapRomBank(Byte bank) {
 void Mmu::handleRomWrite(Word address, Byte value) {
 	// int romsize = 0x7D00 * (1 << ROMSize); // 32,000 kib ($7D00 == 32000)  TODO figure out if this is needed
 
-	switch (MBCType) {
+	switch (cartridge.MBCType) {
         case 0: {
             // nothing happens when you write to a cartrige area in a non-MBC
             break;
@@ -357,12 +338,12 @@ void Mmu::writeByte(Word address, Byte value) {
         VRam[address - 0x8000] = value;
     } else if (address >= 0xA000 && address <= 0xBFFF) {
         if (RAMEnabled) { // check if external RAM is enabled
-            if (MBCType == 3 && currentRamBank >= 0x08 && currentRamBank <= 0x0C) {
+            if (cartridge.MBCType == 3 && currentRamBank >= 0x08 && currentRamBank <= 0x0C) {
                 // writing to RTC registers
                 selectedClockReg = currentRamBank;
                 clockregs[selectedClockReg - 0x08] = value;
             } else {
-                externalRam[address - 0xA000] = value;
+                externalRam[(address - 0xA000 + (currentRamBank * 0x2000))] = value; // offset the external ram write by 
             }
         }
     } else if (address >= 0xC000 && address <= 0xCFFF) {
@@ -405,12 +386,12 @@ Byte Mmu::readByte(Word address) {
         return romBankN[address - 0x4000];
     } else if (address >= 0xA000 && address <= 0xBFFF) {
         if (RAMSize > 0) { // todo verify this behavior (only putting out a value if it's enabled)
-            if (MBCType == 3 && currentRamBank >= 0x08 && currentRamBank <= 0x0C) {
+            if (cartridge.MBCType == 3 && currentRamBank >= 0x08 && currentRamBank <= 0x0C) {
                 // reading from RTC registers
                 selectedClockReg = currentRamBank;
                 return clockregs[selectedClockReg - 0x08];
             }
-            return externalRam[address - 0xA000];
+            return externalRam[(address - 0xA000 + (currentRamBank * 0x2000))];
         } else return 0xFF; // if external ram isn't enabled, often just returning 0xFF
     } else if (address >= 0x8000 && address <= 0x9FFF) {
         return VRam[address - 0x8000];
@@ -450,7 +431,7 @@ int8_t Mmu::readInt(Word address) {
         return static_cast<int8_t>(VRam[address - 0x8000]);
     } else if (address >= 0xA000 && address <= 0xBFFF) {
         if (RAMSize > 0) { // todo verify this behavior (only putting out a value if it's enabled)
-            if (MBCType == 3 && currentRamBank >= 0x08 && currentRamBank <= 0x0C) {
+            if (cartridge.MBCType == 3 && currentRamBank >= 0x08 && currentRamBank <= 0x0C) {
                 // reading from RTC registers
                 selectedClockReg = currentRamBank;
                 return static_cast<int8_t>(clockregs[selectedClockReg - 0x08]);
