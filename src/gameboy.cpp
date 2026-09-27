@@ -29,9 +29,7 @@ void Gameboy::reset() {
 }
 
 
-Gameboy::~Gameboy() {
-    // mmu.save(); // todo
-}
+Gameboy::~Gameboy() {}
 
 
 void Gameboy::runFrame() {

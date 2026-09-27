@@ -2,8 +2,18 @@
 #include "utils/file.hpp"
 #include "utils/types.hpp"
 
+FileHandler::FileHandler() {};
+
 
 FileHandler::FileHandler(const std::string& filePath) : m_filePath{filePath} {
+    // Convert string to std::filesystem::path
+    std::filesystem::path p(filePath);
+    
+    // Get the parent directory path
+    std::filesystem::path folderPathObj = p.parent_path();
+    m_folderPath = folderPathObj.string();
+    m_fileName = p.filename().stem().string();
+
     if (filePath.length() > 0) {
         if (filePath.substr(filePath.length() - 3) == ".gb") {
             isDmg = true;
@@ -33,6 +43,7 @@ std::vector<Byte> FileHandler::readFile() {
     return buffer;
 }
 
+
 void FileHandler::readRandomValues(const std::vector<Byte>& buffer, int start, int length) {
     int final_pos = start + length;
     for (int i = start; i < final_pos && i < buffer.size(); ++i) {
@@ -40,6 +51,7 @@ void FileHandler::readRandomValues(const std::vector<Byte>& buffer, int start, i
     }
     std::cout << std::dec << std::endl; // Reset to decimal
 }
+
 
 void FileHandler::readNthByte(const std::vector<Byte>& buffer, int n) {
     // gameboy rom game starts at $0100, an example to read from
@@ -50,26 +62,36 @@ void FileHandler::readNthByte(const std::vector<Byte>& buffer, int n) {
     }
 }
 
-void FileHandler::createSaveFile(const std::string &saveFilePath, Gameboy &gameboy) {
-    std::ofstream saveFile(saveFilePath, std::ios::binary);
-    if (!saveFile) {
-        std::cerr << "Error creating save file!" << std::endl;
-        return;
-    }
-    // gameboy state here
-    // if (gameboy->mmu.)
-    // serialize gameboy state to saveFile here
 
-    saveFile.close();
+void FileHandler::createSaveFile(Gameboy &gameboy) {
+    if (gameboy.mmu.cartridge.hasRAM) {
+        std::ofstream saveFile(m_folderPath + "/" + m_fileName + ".sav", std::ios::binary);
+        if (!saveFile) {
+            std::cerr << "Error creating save file!" << std::endl;
+            return;
+        }
+        saveFile.write(reinterpret_cast<const char*>(gameboy.mmu.externalRam.data()), sizeof(gameboy.mmu.externalRam)); // first 8k
+
+        saveFile.close();
+    }
+
 }
 
-void FileHandler::loadSaveFile(const std::string &saveFilePath, Gameboy &gameboy) {
-    std::ifstream saveFile(saveFilePath, std::ios::binary);
-    if (!saveFile) {
-        std::cerr << "Error loading save file!" << std::endl;
-        return;
+
+void FileHandler::loadSaveFile(Gameboy &gameboy) {
+     if (gameboy.mmu.cartridge.hasRAM) {
+        std::ifstream saveFile(m_folderPath + "/" + m_fileName + ".sav", std::ios::binary | std::ios::ate);
+        if (!saveFile) {
+            std::cerr << "Error loading save file!" << std::endl;
+            return;
+        }
+
+        // Get total size and seek back to the beginning to read
+        std::streamsize fileSize = saveFile.tellg();
+        saveFile.seekg(0, std::ios::beg);
+        std::streamsize bytesToRead = std::min(fileSize, static_cast<std::streamsize>(sizeof(gameboy.mmu.externalRam)));
+
+        saveFile.read(reinterpret_cast<char*>(gameboy.mmu.externalRam.data()), bytesToRead);
+        saveFile.close();
     }
-    // Read CPU and MMU state from the save file
-    // Implementation depends on how you want to deserialize the state
-    saveFile.close();
 }

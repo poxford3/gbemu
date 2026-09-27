@@ -343,7 +343,7 @@ void Mmu::writeByte(Word address, Byte value) {
                 selectedClockReg = currentRamBank;
                 clockregs[selectedClockReg - 0x08] = value;
             } else {
-                externalRam[address - 0xA000] = value;
+                externalRam[(address - 0xA000 + (currentRamBank * 0x2000))] = value; // offset the external ram write by 
             }
         }
     } else if (address >= 0xC000 && address <= 0xCFFF) {
@@ -391,7 +391,7 @@ Byte Mmu::readByte(Word address) {
                 selectedClockReg = currentRamBank;
                 return clockregs[selectedClockReg - 0x08];
             }
-            return externalRam[address - 0xA000];
+            return externalRam[(address - 0xA000 + (currentRamBank * 0x2000))];
         } else return 0xFF; // if external ram isn't enabled, often just returning 0xFF
     } else if (address >= 0x8000 && address <= 0x9FFF) {
         return VRam[address - 0x8000];

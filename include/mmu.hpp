@@ -89,6 +89,9 @@ class Mmu {
         
         
         std::vector<Byte> entireRom;
+        CartridgeType cartridge;
+        uint RAMSize = 0; // 0x149 in ROM header
+        std::array<Byte, 0x20000> externalRam = {0}; // max size of external RAM is 128kb, so allocating plenty. Most use less
 
         void reset();
         void loadRom(const std::vector<Byte>& program);
@@ -108,16 +111,13 @@ class Mmu {
         void getRamSize(Byte RAMvalue, Byte MBCvalue);
         void swapRomBank(Byte bank);
 
-        CartridgeType cartridge;
-
         Byte currentRomBank = 1;
         bool bankingMode = false;
         Byte ROMSize = 0; // 0x148 in ROM header
 
         // Byte externalRam[0x8000]; // max size of external RAM is 32KB, so allocating plenty. Most use less
-        std::array<Byte, 0x20000> externalRam = {0}; // max size of external RAM is 128kb, so allocating plenty. Most use less
+        
         Byte currentRamBank = 0;
-        uint RAMSize = 0; // 0x149 in ROM header
         bool RAMEnabled = false;
 
         // MBC3 registers/vals

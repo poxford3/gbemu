@@ -3,15 +3,16 @@
 Emulator::Emulator() {
     window = nullptr;
     renderer = nullptr;
-    font = nullptr;
     gbTexture = nullptr;
 
-    init();
+    initGraphics();
 }
 
 
 Emulator::~Emulator() {
-    TTF_CloseFont(font);    
+
+    saveGame(); // save game whenever user closes game
+  
     TTF_Quit();
     SDL_DestroyTexture(gbTexture);
     SDL_DestroyRenderer(renderer);
@@ -28,7 +29,7 @@ Emulator::~Emulator() {
 }
 
 
-void Emulator::init() {
+void Emulator::initGraphics() {
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not be intiialized, SDL error: %s\n", SDL_GetError());
@@ -52,16 +53,6 @@ void Emulator::init() {
 
     if (renderer == NULL) {
         printf("error initializing renderer. SDL error: %s\n", SDL_GetError());
-    }
-
-
-    if (TTF_Init()) {
-        printf("error initializing font, SDL error: %s\n", TTF_GetError());
-    }
-
-    font = TTF_OpenFont("/Users/poxford3/Documents/coding/cpp/gbemu/assets/arial/ARIAL.TTF", 24);
-    if (font == NULL) {
-        printf("error loading font: %s\n", TTF_GetError());
     }
 
     // Dear ImGui
@@ -241,9 +232,10 @@ void Emulator::renderMenuBar() {
     if (ImGui::BeginMainMenuBar()){
         if (ImGui::BeginMenu("File")){
             if (ImGui::Button("Open File")) {
-                FileHandler file = getFileFromUser();
-                if (file.isDmg) {
-                    gameboy.emplace(file.readFile());
+                fileHandler = getFileFromUser();
+                if (fileHandler.isDmg) {
+                    gameboy.emplace(fileHandler.readFile());
+                    loadSave(); // load game when user boots up game
                     createGameboyTextures();
                 } else {
                     printf("no file selected, please select a file to run the emulator\n");
@@ -348,6 +340,20 @@ void Emulator::renderMenuBar() {
         showRamContents();
     }
 }
+
+
+void Emulator::saveGame() {
+    if (gameboy.has_value()) {
+        fileHandler.createSaveFile(*gameboy);
+    }
+}
+
+void Emulator::loadSave() {
+    if (gameboy.has_value()) {
+        fileHandler.loadSaveFile(*gameboy);
+    }
+}
+
 
 FileHandler Emulator::getFileFromUser() {
     nfdchar_t* outPath = nullptr;

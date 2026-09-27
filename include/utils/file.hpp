@@ -12,19 +12,22 @@
  * @param filePath Path to the binary file/ROM.
  */
 class FileHandler {
-public:
-    bool isDmg;
-    bool isCgb;
-    FileHandler(const std::string &filePath);
-    std::vector<unsigned char> readFile();
-    void readRandomValues(const std::vector<unsigned char>& buffer, int start, int length);
-    void readNthByte(const std::vector<unsigned char>& buffer, int n);
+    public:
+        bool isDmg;
+        bool isCgb;
+        FileHandler();
+        FileHandler(const std::string &filePath);
+        std::vector<unsigned char> readFile();
+        void readRandomValues(const std::vector<unsigned char>& buffer, int start, int length);
+        void readNthByte(const std::vector<unsigned char>& buffer, int n);
 
-    void createSaveFile(const std::string &saveFilePath, Gameboy &gameboy);
-    void loadSaveFile(const std::string &saveFilePath, Gameboy &gameboy);
-
-private:
-    std::string m_filePath;
+        void createSaveFile(Gameboy &gameboy);
+        void loadSaveFile(Gameboy &gameboy);
+        
+    private:
+        std::string m_filePath;
+        std::string m_folderPath;
+        std::string m_fileName;
 };
 
 #endif // FILE_HPP
