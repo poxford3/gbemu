@@ -75,5 +75,8 @@ target_link_libraries(${PROJECT_NAME}
     ${SDL2_LIBRARIES}
     ${NFD_LIBRARY}
     nlohmann_json::nlohmann_json
-    "-framework AppKit"
 )
+# run OS level check on libraries
+if(APPLE)
+    target_link_libraries(${PROJECT_NAME} "-framework AppKit")
+endif()
