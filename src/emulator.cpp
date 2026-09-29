@@ -13,7 +13,6 @@ Emulator::~Emulator() {
 
     saveGame(); // save game whenever user closes game
   
-    TTF_Quit();
     SDL_DestroyTexture(gbTexture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

@@ -16,10 +16,6 @@ include_directories(include)
 
 # Find SDL2 (installed via Homebrew)
 find_package(SDL2 REQUIRED)
-find_path(SDL2_IMAGE_INCLUDE_DIR SDL_image.h PATHS /opt/homebrew/include/SDL2)
-find_library(SDL2_IMAGE_LIBRARY SDL2_image PATHS /opt/homebrew/lib)
-find_path(SDL2_TTF_INCLUDE_DIR SDL_ttf.h PATHS /opt/homebrew/include/SDL2)
-find_library(SDL2_TTF_LIBRARY SDL2_ttf PATHS /opt/homebrew/lib)
 
 # Find Native File Dialog (manual since pkg-config was annoying)
 find_path(NFD_INCLUDE_DIR nfd.h PATHS /opt/homebrew/include)
@@ -70,8 +66,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${NFD_INCLUDE_DIR})
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${SDL2_INCLUDE_DIRS}
-    ${SDL2_IMAGE_INCLUDE_DIR}
-    ${SDL2_TTF_INCLUDE_DIR}
     ${NFD_INCLUDE_DIR}
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
@@ -79,8 +73,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME}
     ${SDL2_LIBRARIES}
-    ${SDL2_IMAGE_LIBRARY}
-    ${SDL2_TTF_LIBRARY}
     ${NFD_LIBRARY}
     nlohmann_json::nlohmann_json
     "-framework AppKit"
