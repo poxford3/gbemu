@@ -451,3 +451,13 @@ int8_t Mmu::readInt(Word address) {
         return 0xFF;
     }
 }
+
+
+Byte Mmu::getIoRegister(Word address) {
+    return ioRegisters[address - 0xFF00];
+}
+
+
+void Mmu::setIoRegister(Word address, Byte value) {
+    ioRegisters[address - 0xFF00] = value;
+}

@@ -200,7 +200,7 @@ void Gameboy::handleInterrupts() {
     
     cpu.halted = false;
     if (!cpu.IME) {
-        // printf("interrupt pending but IME=0, IE=%02X IF=%02X\n", memory.interruptEnableRegister, memory.ioRegisters[Mmu::IF]);
+        // printf("interrupt pending but IME=0, IE=%02X IF=%02X\n", memory.interruptEnableRegister, memory.getIoRegister(Mmu::IF));
         return;
     } // if the master interrupt says there are no interrupts, then we just move on
     cpu.IME = false;

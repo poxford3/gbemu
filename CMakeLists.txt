@@ -54,8 +54,7 @@ set(IMGUI_SOURCES
 
 add_executable(${PROJECT_NAME}
     ${SRC_FILES}
-    ${IMGUI_SOURCES}
-)
+    ${IMGUI_SOURCES})
 # ---
 target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
 target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address)

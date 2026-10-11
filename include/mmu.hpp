@@ -98,6 +98,8 @@ class Mmu {
         void writeByte(Word address, Byte value);
         Byte readByte(Word address);
         int8_t readInt(Word address);
+        void setIoRegister(Word address, Byte value);
+        Byte getIoRegister(Word address);
 
         // two bytes to be able to track what's being pressed
         Byte buttons = 0xFF;

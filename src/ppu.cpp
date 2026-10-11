@@ -25,7 +25,7 @@ void Ppu::LCDStatus(Mmu &memory, uint &cycles, Byte &lcdc) {
         memory.writeByte(Mmu::LY, 0);
         lcdStat &= 0xFC; // 0 out the bottom 2 bits
         lcdStat |= HBLANK; // set the PPU Mode to HBlank (bottom 2 bits)
-        memory.ioRegisters[Mmu::STAT - 0xFF00] = lcdStat;
+        memory.setIoRegister(Mmu::STAT, lcdStat);
         return;
     }
 
@@ -67,7 +67,7 @@ void Ppu::LCDStatus(Mmu &memory, uint &cycles, Byte &lcdc) {
 
     oldIntCheck = newIntCheck;
 
-    memory.ioRegisters[Mmu::STAT - 0xFF00] = newLcdStat;
+    memory.setIoRegister(Mmu::STAT, newLcdStat);
 }
 
 
@@ -283,12 +283,11 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
 
     // reorganization thanks to @peter1508 on emudev discord
     if (scanlineCounter <= 0) {
-        Byte currentLine = memory.ioRegisters[Mmu::LY - 0xFF00];
+        Byte currentLine = memory.getIoRegister(Mmu::LY);
         scanlineCounter += 456; // reset scaline counter for the next line
         if (currentLine < 144) {
             renderScanline(memory, currentLine, lcdc);
         }
-        // memory.ioRegisters[Mmu::LY - 0xFF00] = currentLine;
         currentLine++;
         if (currentLine > 153) {
             currentLine = 0;
@@ -301,7 +300,7 @@ void Ppu::updateGraphics(Mmu &memory, uint cycles) {
             IFreg = setBit(IFreg, Cpu::Interrupt::VBLANK);
             memory.writeByte(Mmu::IF, IFreg);
         }
-        memory.ioRegisters[Mmu::LY - 0xFF00] = currentLine;
+        memory.setIoRegister(Mmu::LY, currentLine);
     }
 }
 

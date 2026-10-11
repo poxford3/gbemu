@@ -1,6 +1,6 @@
 #include "cpu/cpu.hpp"
 #include "ppu.hpp"
-#include "apu.hpp"
+#include "apu/apu.hpp"
 #include "mmu.hpp"
 #include "utils/types.hpp"
 
