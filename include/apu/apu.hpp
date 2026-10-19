@@ -1,7 +1,6 @@
-#include "iostream"
+#include <iostream>
 #include "mmu.hpp"
-#include "instrument.hpp"
-#include "square.hpp"
+#include "channel.hpp"
 #include "utils/types.hpp"
 #include "utils/bit.hpp"
 
@@ -13,7 +12,6 @@ class Apu {
         void updateSound(Mmu &memory, uint &cycles);
         void reset();
         Apu(): apuCounters{0,0,0,0} {}
-        Apu(Mmu &memory): apuCounters{0,0,0,0} {}
         ~Apu();
 
     private:
@@ -25,11 +23,13 @@ class Apu {
         };
 
         const int GAMEBOY_FREQUENCY = 1'048'576;
-        const Word period_bounds = 2048;
+        const Word PERIOD_BOUNDS = 2048;
 
         int currentVolume;
-        Square channel1{true};
-        Square channel2;
+        Channel1 channel1;
+        Channel2 channel2;
+        Channel3 channel3;
+        Channel4 channel4;
         bool isCgb2xSpeed = false;
 
         // used to track frequencies of other values from APU Counters
@@ -42,12 +42,7 @@ class Apu {
             VOLUME_ENVELOPE     = 3  // 64 Hz 
         };
 
-        Word getPeriod(Byte &NRx4, Byte &NRx3);
-        float getSampleRate(Word period);
         void frameSequencer(Byte &div);
-        int envelopeVolume(Word &period, Square &channel);
-        float newSweepFrequency(Byte &sweepShift);
-        float sweep(Byte &sweepShift, bool &sweepEnabled);
         float mixer();
         
 
