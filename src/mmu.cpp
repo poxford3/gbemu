@@ -14,6 +14,7 @@ Mmu::Mmu() {
     std::fill(std::begin(ioRegisters), std::end(ioRegisters), 0);
 }
 
+
 void Mmu::loadRom(const std::vector<Byte>& program) {
     uint numBytes = program.size();
 
@@ -305,7 +306,66 @@ void Mmu::handleRomWrite(Word address, Byte value) {
 }
 
 
-Byte Mmu::handleJoypad() {
+void Mmu::handleApuWrite(Word address, Byte value) {
+    Byte _NR52 = getIoRegister(NR52); // Audio Master Control
+    bool masterAudioEnable = getBit(_NR52, 7); // 7th bit is master audio enable
+    bool channel1On = getBit(_NR52, 0);
+    bool channel2On = getBit(_NR52, 1);
+    bool channel3On = getBit(_NR52, 2);
+    bool channel4On = getBit(_NR52, 3);
+
+    switch (address) {
+        case NR21: {
+            if (masterAudioEnable) ioRegisters[NR21] = value;
+            ch2LengthTimer = 64 - (value & 0x3F); // bottom 6 bits
+            break;
+        }
+        case NR22: {
+            bool oldIsEnvelopeIncreasing = getBit(ioRegisters[NR21], 3);
+            Byte oldStepPeriodPace = ioRegisters[NR21] & 0x7;
+
+            bool isEnvelopeIncreasing = getBit(value, 3);
+            ch2stepPeriodPace = value & 0x7; // bottom 3 bits
+
+            if (channel2On) {
+                // https://gbdev.gg8.se/wiki/articles/Gameboy_sound_hardware#:~:text=through%20most%20songs.-,%22Zombie%22%20mode,-%3A%20the%20volume%20can
+                if (oldStepPeriodPace == 0 && ch2EnvelopeUpdating) { // add in was channel updating from zombie mode docs
+                    ch2EnvelopeCurrentVolume++;
+                } else {
+                    ch2EnvelopeCurrentVolume += 2;
+                }
+                if (oldIsEnvelopeIncreasing != isEnvelopeIncreasing)
+                    ch2EnvelopeCurrentVolume = 16 - ch2EnvelopeCurrentVolume;
+                ch2EnvelopeCurrentVolume &= 0xF;
+            }
+
+            break;
+        }
+        case NR23:
+        case NR24: // NR23/NR24 just sets the value, the rest is handled by the channel
+
+        case NR10:
+        case NR11:
+        case NR12:
+        case NR13:
+        case NR14:
+        case NR31:
+        case NR32:
+        case NR33:
+        case NR34:
+        case NR41:
+        case NR42:
+        case NR43:
+        case NR44:
+        case NR50:
+        case NR51:
+        case NR52:
+        default: setIoRegister(address, value); break;
+    }
+}
+
+
+Byte Mmu::handleJoypadRead() {
     Byte joypadValue = ioRegisters[P1 - 0xFF00];
     Byte output = joypadValue | 0x0F; // start with all buttons unpressed
  
@@ -360,9 +420,11 @@ void Mmu::writeByte(Word address, Byte value) {
         HRam[address - 0xFF80] = value;
     } else if (address >= 0xFF00 && address <= 0xFF7F) {
         if (address == DIV || address == LY) {
-            ioRegisters[address - 0xFF00] = 0; // writes to DIV (0xFF04) and LY (0xFF44) always result in 0
+            setIoRegister(address, 0); // writes to DIV (0xFF04) and LY (0xFF44) always result in 0
+        } else if (address >= NR10 && address <= NR52) {
+            handleApuWrite(address, value);
         } else {
-            ioRegisters[address - 0xFF00] = value;
+            setIoRegister(address, value);
         }
     } else if (address == 0xFFFF) {
         interruptEnableRegister = value; 
@@ -376,8 +438,8 @@ Byte Mmu::readByte(Word address) {
 
     if (address >= 0xFF00 && address <= 0xFF7F) {
         // return variable for joyp/p1, otherwise, return mem value
-        if (address == P1) return handleJoypad();
-        return ioRegisters[address - 0xFF00];
+        if (address == P1) return handleJoypadRead();
+        return getIoRegister(address);
     } else if (address == 0xFFFF) {
         return interruptEnableRegister; 
     } else if (address >= 0x0000 && address <= 0x3FFF) {
@@ -420,7 +482,7 @@ Byte Mmu::readByte(Word address) {
 
 int8_t Mmu::readInt(Word address) {
     if (address >= 0xFF00 && address <= 0xFF7F) {
-        return static_cast<int8_t>(ioRegisters[address - 0xFF00]);
+        return static_cast<int8_t>(getIoRegister(address));
     } else if (address == 0xFFFF) {
         return static_cast<int8_t>(interruptEnableRegister);
     } else if (address >= 0x0000 && address <= 0x3FFF) {

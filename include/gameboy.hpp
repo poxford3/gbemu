@@ -35,12 +35,13 @@ class Gameboy {
             B_LEFT = 1,
             A_RIGHT = 0
         };
-        
+
     private:
         uint tickCpu();
         bool checksum();
-        void updateGraphics(uint cycles);
         void updateTimer(uint cycles);
+        void updateGraphics(uint cycles);
+        void updateAudio(uint cycles);
         void handleInterrupts();
 
         void joyPadProcessor(Byte input, Byte type, bool keyUp); 

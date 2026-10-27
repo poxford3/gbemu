@@ -104,11 +104,22 @@ class Mmu {
         // two bytes to be able to track what's being pressed
         Byte buttons = 0xFF;
         Byte dpad = 0xFF;
-        Byte handleJoypad();
+        Byte handleJoypadRead();
+
+        // APU section
+        Byte ch1LengthTimer;
+        Byte ch2LengthTimer;
+        Byte ch3LengthTimer;
+        Byte ch4LengthTimer;
+
+        Byte ch2stepPeriodPace;
+        Byte ch2EnvelopeCurrentVolume;
+        bool ch2EnvelopeUpdating;
         
     private:
         // https://gbdev.io/pandocs/The_Cartridge_Header.html#0147--cartridge-type
         void handleRomWrite(Word address, Byte value);
+        void handleApuWrite(Word address, Byte value);
         void setCartridgeType(Byte MBCvalue);
         void getRamSize(Byte RAMvalue, Byte MBCvalue);
         void swapRomBank(Byte bank);

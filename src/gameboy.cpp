@@ -19,12 +19,14 @@ void Gameboy::start() {
     cpu.reset();
     mmu.reset();
     ppu.reset();
+    apu.reset();
 };
 
 void Gameboy::reset() {
     cpu.reset();
     mmu.reset();
     ppu.reset();
+    apu.reset();
     checksumPassed = checksum();
 }
 
@@ -39,6 +41,7 @@ void Gameboy::runFrame() {
             uint cycles = tickCpu();
             updateTimer(cycles);
             updateGraphics(cycles);
+            updateAudio(cycles);
             handleInterrupts();
             frameCycles += cycles;
         }
@@ -191,6 +194,11 @@ void Gameboy::updateTimer(uint cycles) {
 
 void Gameboy::updateGraphics(uint cycles) {
     ppu.updateGraphics(mmu, cycles);
+}
+
+
+void Gameboy::updateAudio(uint cycles) {
+    apu.updateSound(mmu, cycles);
 }
 
 
